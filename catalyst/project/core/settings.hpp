@@ -104,7 +104,7 @@ namespace settings {
 
 			struct hitboxes
 			{
-				bool enabled{ false };
+				bool enabled{ true };
 
 				zdraw::rgba visible_color{ 150, 160, 240, 10 };
 				zdraw::rgba occluded_color{ 115, 120, 185, 10 };

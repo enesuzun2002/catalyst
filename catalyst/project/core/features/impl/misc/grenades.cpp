@@ -223,16 +223,28 @@ namespace features::misc {
 		auto eye_pos = systems::g_view.origin( );
 		eye_pos.z += strength * 12.0f - 12.0f;
 
-		math::vector3 forward{}, right{}, up{};
-		angles.to_directions( &forward, &right, &up );
+		math::vector3 forward{};
+		{
+			const auto pitch = angles.x * ( std::numbers::pi_v<float> / 180.0f );
+			const auto yaw = angles.y * ( std::numbers::pi_v<float> / 180.0f );
 
-		const auto trace = systems::g_bvh.trace_ray( eye_pos, eye_pos + forward * 22.0f );
-		origin = trace.hit ? trace.end_pos - forward * 6.0f : eye_pos + forward * 16.0f;
+			forward =
+			{
+				std::cosf( pitch ) * std::cosf( yaw ),
+				std::cosf( pitch ) * std::sinf( yaw ),
+				-std::sinf( pitch )
+			};
+		}
+
+		const auto hull_mins = math::vector3{ -k_hull_size, -k_hull_size, -k_hull_size };
+		const auto hull_maxs = math::vector3{ k_hull_size, k_hull_size, k_hull_size };
+		const auto trace = systems::g_bvh.trace_hull( eye_pos, eye_pos + forward * k_forward_offset, hull_mins, hull_maxs );
+		origin = trace.end_pos - forward * k_pull_back;
 
 		const auto throw_vel = std::clamp( this->m_throw_velocity * 0.9f, 15.0f, 750.0f );
 		const auto throw_speed = ( strength * 0.7f + 0.3f ) * throw_vel;
 
-		velocity = forward * throw_speed + player_velocity * 1.25f;
+		velocity = forward * throw_speed + player_velocity * k_velocity_inherit;
 	}
 
 	void grenades::update_in_flight( )
@@ -368,7 +380,7 @@ namespace features::misc {
 		this->m_sv_gravity = systems::g_convars.get<float>( CONVAR( "sv_gravity"_hash ) );
 
 		const auto molotov_slope = systems::g_convars.get<float>( CONVAR( "weapon_molotov_maxdetonateslope"_hash ) );
-		this->m_molotov_max_slope_z = std::cosf( molotov_slope * 3.14159265f / 180.0f );
+		this->m_molotov_max_slope_z = std::cosf( molotov_slope * std::numbers::pi_v<float> / 180.0f );
 
 		out.points.clear( );
 		out.points.reserve( max_ticks / ticks_per_point );
@@ -389,25 +401,18 @@ namespace features::misc {
 			}
 
 			systems::bvh::trace_result trace{};
-			this->step_simulation( pos, vel, trace );
+			auto impact_detonate{ false };
+
+			this->step_simulation( pos, vel, trace, impact_detonate );
 
 			if ( trace.hit )
 			{
 				++bounce_count;
 				out.bounces.push_back( pos );
-
-				const auto is_molotov = this->m_weapon_hash == "weapon_molotov"_hash || this->m_weapon_hash == "weapon_incgrenade"_hash;
-				if ( is_molotov && trace.normal.z >= this->m_molotov_max_slope_z )
-				{
-					out.end_tick = tick;
-					out.end_pos = pos;
-					out.duration = static_cast< float >( tick ) * cstypes::tick_interval;
-					break;
-				}
 			}
 
-			const auto velocity_stopped = std::fabsf( vel.x ) < 20.0f && std::fabsf( vel.y ) < 20.0f && vel.length_sqr( ) < 400.0f;
-			if ( this->should_detonate( vel, tick ) || bounce_count > 20 || velocity_stopped )
+			const auto velocity_stopped = std::fabsf( vel.x ) < 20.0f && std::fabsf( vel.y ) < 20.0f && vel.length_sqr( ) < k_stop_speed_sq;
+			if ( impact_detonate || this->should_detonate( vel, tick ) || bounce_count > 20 || velocity_stopped )
 			{
 				out.end_tick = tick;
 				out.end_pos = pos;
@@ -432,8 +437,10 @@ namespace features::misc {
 		out.valid = out.end_tick >= 0;
 	}
 
-	void grenades::step_simulation( math::vector3& pos, math::vector3& vel, systems::bvh::trace_result& trace )
+	void grenades::step_simulation( math::vector3& pos, math::vector3& vel, systems::bvh::trace_result& trace, bool& detonated )
 	{
+		detonated = false;
+
 		const auto gravity = this->m_sv_gravity * gravity_scale;
 		const auto new_vel_z = vel.z - gravity * cstypes::tick_interval;
 
@@ -446,36 +453,55 @@ namespace features::misc {
 
 		vel.z = new_vel_z;
 
-		trace = systems::g_bvh.trace_ray( pos, pos + move );
+		const auto hull_mins = math::vector3{ -k_hull_size, -k_hull_size, -k_hull_size };
+		const auto hull_maxs = math::vector3{ k_hull_size, k_hull_size, k_hull_size };
+		trace = systems::g_bvh.trace_hull( pos, pos + move, hull_mins, hull_maxs );
 		pos = trace.end_pos;
 
 		if ( trace.hit )
 		{
-			this->resolve_collision( trace, pos, vel );
+			this->resolve_collision( trace, pos, vel, detonated );
 		}
 	}
 
-	void grenades::resolve_collision( const systems::bvh::trace_result& trace, math::vector3& pos, math::vector3& vel )
+	void grenades::resolve_collision( const systems::bvh::trace_result& trace, math::vector3& pos, math::vector3& vel, bool& detonated )
 	{
-		const auto total_elasticity = std::clamp( elasticity, 0.0f, 0.9f );
-		const auto backoff = vel.dot( trace.normal ) * 2.0f;
+		detonated = false;
 
-		auto new_vel = ( vel - trace.normal * backoff ) * total_elasticity;
+		const auto is_molotov = this->m_weapon_hash == "weapon_molotov"_hash || this->m_weapon_hash == "weapon_incgrenade"_hash;
+		if ( is_molotov )
+		{
+			if ( trace.normal.z >= this->m_molotov_max_slope_z || vel.length_sqr( ) < k_stop_speed_sq )
+			{
+				detonated = true;
+				vel = {};
+				return;
+			}
+		}
 
-		if ( trace.normal.z > 0.7f )
+		auto new_vel = clip_velocity( vel, trace.normal, 2.0f );
+
+		new_vel.x *= elasticity;
+		new_vel.y *= elasticity;
+		new_vel.z *= elasticity;
+
+		if ( trace.normal.z > k_steep_bounce_normal_z )
 		{
 			const auto speed_sqr = new_vel.length_sqr( );
 
-			if ( speed_sqr > 96000.0f )
+			if ( speed_sqr > k_steep_bounce_speed_sq )
 			{
 				const auto l = new_vel.normalized( ).dot( trace.normal );
 				if ( l > 0.5f )
 				{
-					new_vel = new_vel * ( 1.5f - l );
+					const auto dampen = 1.5f - l;
+					new_vel.x *= dampen;
+					new_vel.y *= dampen;
+					new_vel.z *= dampen;
 				}
 			}
 
-			if ( speed_sqr < 400.0f )
+			if ( new_vel.length_sqr( ) < k_stop_speed_sq )
 			{
 				vel = {};
 				return;
@@ -487,7 +513,9 @@ namespace features::misc {
 		const auto remaining = 1.0f - trace.fraction;
 		if ( remaining > 0.0f )
 		{
-			const auto post_trace = systems::g_bvh.trace_ray( pos, pos + new_vel * ( remaining * cstypes::tick_interval ) );
+			const auto hull_mins = math::vector3{ -k_hull_size, -k_hull_size, -k_hull_size };
+			const auto hull_maxs = math::vector3{ k_hull_size, k_hull_size, k_hull_size };
+			const auto post_trace = systems::g_bvh.trace_hull( pos, pos + new_vel * ( remaining * cstypes::tick_interval ), hull_mins, hull_maxs );
 			pos = post_trace.end_pos;
 		}
 	}
@@ -515,6 +543,35 @@ namespace features::misc {
 		default:
 			return false;
 		}
+	}
+
+	math::vector3 grenades::clip_velocity( const math::vector3& velocity, const math::vector3& normal, float overbounce )
+	{
+		const auto backoff = velocity.dot( normal ) * overbounce;
+
+		math::vector3 out
+		{
+			velocity.x - normal.x * backoff,
+			velocity.y - normal.y * backoff,
+			velocity.z - normal.z * backoff
+		};
+
+		if ( std::fabsf( out.x ) < 0.1f )
+		{
+			out.x = 0.0f;
+		}
+
+		if ( std::fabsf( out.y ) < 0.1f )
+		{
+			out.y = 0.0f;
+		}
+
+		if ( std::fabsf( out.z ) < 0.1f )
+		{
+			out.z = 0.0f;
+		}
+
+		return out;
 	}
 
 	void grenades::render_trajectory( zdraw::draw_list& draw_list, const trajectory& traj, float alpha ) const

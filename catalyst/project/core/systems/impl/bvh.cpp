@@ -436,7 +436,7 @@ namespace systems {
 				extract_mesh( bvh_ptr, vert_ptr, tri_ptr, node_count, rot, scale, world_pos, mat_arr_ptr, mat_count, global_table, default_surface, out );
 			}
 		}
-		
+
 	} // namespace detail
 
 	void bvh::parse( )
@@ -752,6 +752,176 @@ namespace systems {
 							const auto inv_nl = 1.0f / nl;
 							result.normal = { nx * inv_nl, ny * inv_nl, nz * inv_nl };
 						}
+					}
+				}
+			}
+			else if ( sp + 2 < 127 )
+			{
+				stack[ ++sp ] = node.right;
+				stack[ ++sp ] = node.left;
+			}
+		}
+
+		return result;
+	}
+
+	bvh::trace_result bvh::trace_hull( const math::vector3& start, const math::vector3& end, const math::vector3& hull_mins, const math::vector3& hull_maxs, std::int32_t exclude_tri ) const
+	{
+		const float half[ 3 ]
+		{
+			( hull_maxs.x - hull_mins.x ) * 0.5f,
+			( hull_maxs.y - hull_mins.y ) * 0.5f,
+			( hull_maxs.z - hull_mins.z ) * 0.5f
+		};
+
+		const float offset[ 3 ]
+		{
+			( hull_mins.x + hull_maxs.x ) * 0.5f,
+			( hull_mins.y + hull_maxs.y ) * 0.5f,
+			( hull_mins.z + hull_maxs.z ) * 0.5f
+		};
+
+		const math::vector3 shifted_start{ start.x + offset[ 0 ], start.y + offset[ 1 ], start.z + offset[ 2 ] };
+		const math::vector3 shifted_end{ end.x + offset[ 0 ], end.y + offset[ 1 ], end.z + offset[ 2 ] };
+
+		trace_result result{};
+		result.end_pos = end;
+
+		if ( this->m_nodes.empty( ) )
+		{
+			return result;
+		}
+
+		const auto dx = shifted_end.x - shifted_start.x;
+		const auto dy = shifted_end.y - shifted_start.y;
+		const auto dz = shifted_end.z - shifted_start.z;
+		const auto max_dist = std::sqrt( dx * dx + dy * dy + dz * dz );
+
+		if ( max_dist < 1e-8f )
+		{
+			return result;
+		}
+
+		const auto inv_dist = 1.0f / max_dist;
+		const float dir[ 3 ]{ dx * inv_dist, dy * inv_dist, dz * inv_dist };
+		const float origin[ 3 ]{ shifted_start.x, shifted_start.y, shifted_start.z };
+		const float inv_dir[ 3 ]
+		{
+			std::abs( dir[ 0 ] ) > 1e-8f ? 1.0f / dir[ 0 ] : ( dir[ 0 ] >= 0 ? 1e12f : -1e12f ),
+			std::abs( dir[ 1 ] ) > 1e-8f ? 1.0f / dir[ 1 ] : ( dir[ 1 ] >= 0 ? 1e12f : -1e12f ),
+			std::abs( dir[ 2 ] ) > 1e-8f ? 1.0f / dir[ 2 ] : ( dir[ 2 ] >= 0 ? 1e12f : -1e12f )
+		};
+
+		auto closest_t = max_dist;
+
+		std::int32_t stack[ 128 ]{};
+		std::int32_t sp{ 0 };
+		stack[ 0 ] = 0;
+
+		while ( sp >= 0 )
+		{
+			const auto& node = this->m_nodes[ stack[ sp-- ] ];
+			auto expanded = node.bounds;
+
+			for ( int i = 0; i < 3; ++i )
+			{
+				expanded.mins[ i ] -= half[ i ];
+				expanded.maxs[ i ] += half[ i ];
+			}
+
+			if ( !expanded.intersects_ray( origin, inv_dir, closest_t ) )
+			{
+				continue;
+			}
+
+			if ( node.left == -1 )
+			{
+				for ( std::int32_t i = node.tri_start; i < node.tri_start + node.tri_count; ++i )
+				{
+					const auto ti = this->m_indices[ i ];
+					if ( ti == exclude_tri )
+					{
+						continue;
+					}
+
+					const auto& tri = this->m_triangles[ ti ];
+
+					const auto e1x = tri.v1.x - tri.v0.x, e1y = tri.v1.y - tri.v0.y, e1z = tri.v1.z - tri.v0.z;
+					const auto e2x = tri.v2.x - tri.v0.x, e2y = tri.v2.y - tri.v0.y, e2z = tri.v2.z - tri.v0.z;
+
+					auto nx = e1y * e2z - e1z * e2y;
+					auto ny = e1z * e2x - e1x * e2z;
+					auto nz = e1x * e2y - e1y * e2x;
+					const auto nl = std::sqrt( nx * nx + ny * ny + nz * nz );
+
+					if ( nl < 1e-8f )
+					{
+						continue;
+					}
+
+					const auto inv_nl = 1.0f / nl;
+					nx *= inv_nl;
+					ny *= inv_nl;
+					nz *= inv_nl;
+
+					const auto support = half[ 0 ] * std::abs( nx ) + half[ 1 ] * std::abs( ny ) + half[ 2 ] * std::abs( nz );
+
+					const auto push_x = nx * support;
+					const auto push_y = ny * support;
+					const auto push_z = nz * support;
+
+					const auto center_to_origin_dot = ( origin[ 0 ] - tri.v0.x ) * nx + ( origin[ 1 ] - tri.v0.y ) * ny + ( origin[ 2 ] - tri.v0.z ) * nz;
+					const auto sign = center_to_origin_dot >= 0.0f ? 1.0f : -1.0f;
+
+					const auto v0x = tri.v0.x + push_x * sign, v0y = tri.v0.y + push_y * sign, v0z = tri.v0.z + push_z * sign;
+					const auto fe1x = tri.v1.x + push_x * sign - v0x, fe1y = tri.v1.y + push_y * sign - v0y, fe1z = tri.v1.z + push_z * sign - v0z;
+					const auto fe2x = tri.v2.x + push_x * sign - v0x, fe2y = tri.v2.y + push_y * sign - v0y, fe2z = tri.v2.z + push_z * sign - v0z;
+
+					const auto hx = dir[ 1 ] * fe2z - dir[ 2 ] * fe2y;
+					const auto hy = dir[ 2 ] * fe2x - dir[ 0 ] * fe2z;
+					const auto hz = dir[ 0 ] * fe2y - dir[ 1 ] * fe2x;
+					const auto a = fe1x * hx + fe1y * hy + fe1z * hz;
+
+					if ( a > -1e-8f && a < 1e-8f )
+					{
+						continue;
+					}
+
+					const auto f = 1.0f / a;
+					const auto sx = origin[ 0 ] - v0x, sy = origin[ 1 ] - v0y, sz = origin[ 2 ] - v0z;
+					const auto u = f * ( sx * hx + sy * hy + sz * hz );
+
+					if ( u < -0.01f || u > 1.01f )
+					{
+						continue;
+					}
+
+					const auto qx = sy * fe1z - sz * fe1y, qy = sz * fe1x - sx * fe1z, qz = sx * fe1y - sy * fe1x;
+					const auto v = f * ( dir[ 0 ] * qx + dir[ 1 ] * qy + dir[ 2 ] * qz );
+
+					if ( v < -0.01f || u + v > 1.02f )
+					{
+						continue;
+					}
+
+					const auto t = f * ( fe2x * qx + fe2y * qy + fe2z * qz );
+
+					if ( t > 0.0f && t < closest_t )
+					{
+						closest_t = t;
+						result.hit = true;
+						result.fraction = t / max_dist;
+						result.distance = t;
+						result.triangle_index = ti;
+						result.surface = tri.surface;
+						result.normal = { nx * sign, ny * sign, nz * sign };
+
+						result.end_pos =
+						{
+							start.x + dir[ 0 ] * t,
+							start.y + dir[ 1 ] * t,
+							start.z + dir[ 2 ] * t
+						};
 					}
 				}
 			}

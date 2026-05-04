@@ -1,5 +1,7 @@
 #pragma once
 
+#include <random>
+
 namespace random {
 
 	class valve_rng
@@ -232,5 +234,19 @@ namespace random {
 		std::uint8_t m_buffer[ 64 ]{};
 		std::uint8_t m_digest[ 20 ]{};
 	};
+
+	inline thread_local std::mt19937 g_engine{ static_cast< std::uint32_t >( std::chrono::steady_clock::now( ).time_since_epoch( ).count( ) ) };
+
+	inline float floating( float min, float max )
+	{
+		std::uniform_real_distribution<float> dist( min, max );
+		return dist( g_engine );
+	}
+
+	inline float normal_clamped( float mean, float stddev, float lo, float hi )
+	{
+		std::normal_distribution<float> dist( mean, stddev );
+		return std::clamp( dist( g_engine ), lo, hi );
+	}
 
 } // namespace random

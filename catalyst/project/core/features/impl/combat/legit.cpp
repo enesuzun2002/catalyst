@@ -16,7 +16,6 @@ namespace features::combat {
 		}
 
 		const auto valid_weapon = cstypes::is_weapon_valid( ctx.weapon_type );
-
 		if ( valid_weapon && cfg.other.penetration_crosshair )
 		{
 			this->draw_penetration_crosshair( draw_list, eye_pos, view_angles, cfg );
@@ -352,25 +351,48 @@ namespace features::combat {
 		auto desired = math::helpers::calculate_angle( eye_pos, aim_point );
 		auto delta_x = desired.x - view_angles.x;
 		auto delta_y = math::helpers::normalize_yaw( desired.y - view_angles.y );
+		const auto delta_length = std::sqrtf( delta_x * delta_x + delta_y * delta_y );
+
+		if ( delta_length < 0.001f )
+		{
+			this->m_aim_error = {};
+			return;
+		}
 
 		if ( cfg.smoothing > 1 )
 		{
-			const auto factor = static_cast< float >( cfg.smoothing );
-			delta_x /= factor;
-			delta_y /= factor;
+			const auto base_smooth = static_cast< float >( cfg.smoothing );
+			const auto distance_factor = std::clamp( delta_length / 10.0f, 0.0f, 1.0f );
+			const auto ease = 1.0f - std::powf( distance_factor, 2.0f );
+			auto smooth_factor = ( 0.3f + ease * 0.7f ) / base_smooth;
+
+			smooth_factor *= random::normal_clamped( 1.0f, 0.06f, 0.85f, 1.15f );
+
+			const auto x_bias = random::normal_clamped( 1.0f, 0.02f, 0.95f, 1.05f );
+			const auto y_bias = random::normal_clamped( 0.97f, 0.03f, 0.90f, 1.04f );
+
+			delta_x *= smooth_factor * x_bias;
+			delta_y *= smooth_factor * y_bias;
+
+			if ( delta_length < 2.0f && delta_length > 0.3f && random::floating( 0.0f, 1.0f ) < 0.15f )
+			{
+				const auto overshoot = random::normal_clamped( 1.2f, 0.08f, 1.05f, 1.4f );
+				delta_x *= overshoot;
+				delta_y *= overshoot;
+			}
 		}
 
-		const auto move_x = -delta_y / deg_per_pixel;
-		const auto move_y = delta_x / deg_per_pixel;
+		const auto want_x = -delta_y + this->m_aim_error.x;
+		const auto want_y = delta_x + this->m_aim_error.y;
 
-		this->m_aim_error.x += move_x;
-		this->m_aim_error.y += move_y;
+		const auto counts_x = std::roundf( want_x / deg_per_pixel );
+		const auto counts_y = std::roundf( want_y / deg_per_pixel );
 
-		const auto dx = static_cast< int >( this->m_aim_error.x );
-		const auto dy = static_cast< int >( this->m_aim_error.y );
+		this->m_aim_error.x = want_x - counts_x * deg_per_pixel;
+		this->m_aim_error.y = want_y - counts_y * deg_per_pixel;
 
-		this->m_aim_error.x -= static_cast< float >( dx );
-		this->m_aim_error.y -= static_cast< float >( dy );
+		const auto dx = static_cast< int >( counts_x );
+		const auto dy = static_cast< int >( counts_y );
 
 		if ( dx != 0 || dy != 0 )
 		{
@@ -386,11 +408,9 @@ namespace features::combat {
 		view_angles.to_directions( &forward, nullptr, nullptr );
 
 		constexpr auto max_range{ 8192.0f };
-		const auto end_pos = eye_pos + forward * max_range;
-
-		const auto world_trace = systems::g_bvh.trace_ray( eye_pos, end_pos );
 		auto best_dist_sq = max_range * max_range;
-		const auto prediction_time = cfg.predictive ? g_shared.get_prediction_time( ) + static_cast< float >( cfg.delay ) * 0.001f : 0.0f;
+		const auto end_pos = eye_pos + forward * max_range;
+		const auto prediction_time = cfg.predictive ? g_shared.get_prediction_time( ) : 0.0f;
 
 		for ( const auto& player : players )
 		{

@@ -8,7 +8,7 @@ int main( )
 	timeBeginPeriod( 1 );
 
 	{
-		if ( !g::console.initialize( " :> " ) )
+		if ( !g::console.initialize( " :> (id recommend you cap your ingame fps for better performance)" ) )
 		{
 			return 1;
 		}

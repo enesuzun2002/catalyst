@@ -261,9 +261,10 @@ namespace features {
 			[[nodiscard]] std::uintptr_t hash_from_projectile( systems::collector::projectile_subtype type ) const;
 
 			void simulate( const math::vector3& start, const math::vector3& velocity, trajectory& out );
-			void step_simulation( math::vector3& pos, math::vector3& vel, systems::bvh::trace_result& trace );
-			void resolve_collision( const systems::bvh::trace_result& trace, math::vector3& pos, math::vector3& vel );
+			void step_simulation( math::vector3& pos, math::vector3& vel, systems::bvh::trace_result& trace, bool& detonated );
+			void resolve_collision( const systems::bvh::trace_result& trace, math::vector3& pos, math::vector3& vel, bool& detonated );
 			[[nodiscard]] bool should_detonate( const math::vector3& vel, int tick ) const;
+			[[nodiscard]] math::vector3 clip_velocity( const math::vector3& velocity, const math::vector3& normal, float overbounce );
 			void render_trajectory( zdraw::draw_list& draw_list, const trajectory& traj, float alpha ) const;
 
 			std::uintptr_t m_weapon_vdata{};
@@ -285,6 +286,13 @@ namespace features {
 			static constexpr auto ticks_per_point{ 4 };
 			static constexpr auto throw_cooldown{ 1.0f };
 			static constexpr auto missing_grace{ 0.1f };
+			static constexpr auto k_hull_size{ 2.0f };
+			static constexpr auto k_pull_back{ 6.0f };
+			static constexpr auto k_forward_offset{ 22.0f };
+			static constexpr auto k_velocity_inherit{ 1.25f };
+			static constexpr auto k_stop_speed_sq{ 400.0f };
+			static constexpr auto k_steep_bounce_normal_z{ 0.7f };
+			static constexpr auto k_steep_bounce_speed_sq{ 96000.0f };
 		};
 
 		class impacts

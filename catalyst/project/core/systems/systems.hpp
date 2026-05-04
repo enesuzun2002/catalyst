@@ -190,9 +190,6 @@ namespace systems {
 
 		[[nodiscard]] set query( std::uintptr_t game_scene_node ) const;
 		[[nodiscard]] int hitgroup_from_hitbox( int hitbox ) const;
-
-	private:
-		static constexpr int k_bone_map[ ]{ 7, -1, 1, 2, 3, 4, 6, 22, 25, 23, 26, 24, 27, 10, 15, 9, 8, 14, 13 };
 	};
 
 	class collector
@@ -366,6 +363,7 @@ namespace systems {
 		void clear( );
 
 		[[nodiscard]] trace_result trace_ray( const math::vector3& start, const math::vector3& end, std::int32_t exclude_tri = -1 ) const;
+		[[nodiscard]] trace_result trace_hull( const math::vector3& start, const math::vector3& end, const math::vector3& hull_mins, const math::vector3& hull_maxs, std::int32_t exclude_tri = -1 ) const;
 		[[nodiscard]] std::vector<hit_entry> trace_ray_all( const math::vector3& start, const math::vector3& end ) const;
 		[[nodiscard]] std::vector<penetration_segment> build_segments( const std::vector<hit_entry>& hits, float ray_length ) const;
 
