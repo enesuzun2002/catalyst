@@ -52,18 +52,25 @@ namespace features::esp {
 
 	void item::add_icon( zdraw::draw_list& draw_list, const math::vector2& screen, const systems::collector::item& item, const settings::esp::item::icon& cfg, float& y_offset )
 	{
-		zdraw::push_font( g::render.fonts( ).weapons_15 );
+		const auto* ico = systems::g_icons.get( this->get_icon( item.subtype ) );
+		if ( !ico || !ico->texture )
+		{
+			return;
+		}
 
-		const auto icon = this->get_icon( item.subtype );
-		const auto [text_w, text_h] = zdraw::measure_text( icon );
-		const auto x = std::floorf( screen.x - text_w * 0.5f );
-		const auto y = std::floorf( screen.y - text_h * 0.5f + y_offset );
+		constexpr auto target_h{ 16.0f };
+		const auto target_w = ico->height > 0 ? target_h * static_cast< float >( ico->width ) / static_cast< float >( ico->height ) : target_h;
+		const auto x = std::floorf( screen.x - target_w * 0.5f );
+		const auto y = std::floorf( screen.y - target_h * 0.5f + y_offset );
+		constexpr auto outline = zdraw::rgba{ 0, 0, 0, 255 };
 
-		draw_list.add_text( x, y, icon, nullptr, cfg.color, zdraw::text_style::outlined );
+		draw_list.add_rect_textured( x - 1.0f, y, target_w, target_h, ico->texture.Get( ), 0.0f, 0.0f, 1.0f, 1.0f, outline );
+		draw_list.add_rect_textured( x + 1.0f, y, target_w, target_h, ico->texture.Get( ), 0.0f, 0.0f, 1.0f, 1.0f, outline );
+		draw_list.add_rect_textured( x, y - 1.0f, target_w, target_h, ico->texture.Get( ), 0.0f, 0.0f, 1.0f, 1.0f, outline );
+		draw_list.add_rect_textured( x, y + 1.0f, target_w, target_h, ico->texture.Get( ), 0.0f, 0.0f, 1.0f, 1.0f, outline );
+		draw_list.add_rect_textured( x, y, target_w, target_h, ico->texture.Get( ), 0.0f, 0.0f, 1.0f, 1.0f, cfg.color );
 
-		zdraw::pop_font( );
-
-		y_offset += text_h - 5.5f;
+		y_offset += target_h - 5.5f;
 	}
 
 	void item::add_name( zdraw::draw_list& draw_list, const math::vector2& screen, const systems::collector::item& item, const settings::esp::item::name& cfg, float& y_offset )
@@ -92,7 +99,7 @@ namespace features::esp {
 		const auto y = std::floorf( screen.y + y_offset );
 
 		const auto fraction = static_cast< float >( std::clamp( item.ammo, 0, item.max_ammo ) ) / item.max_ammo;
-		const auto color = fraction > 0.0f ? cfg.color : cfg.empty_color;
+		const auto color = fraction > 0.0f ? cfg.color.value : cfg.empty_color.value;
 
 		draw_list.add_text( x, y, text, nullptr, color, zdraw::text_style::outlined );
 
@@ -195,32 +202,32 @@ namespace features::esp {
 
 		static const std::unordered_map<st, std::string> icons
 		{
-			{ st::ak47,           "W" }, { st::m4a4,           "S" },
-			{ st::m4a1s,          "T" }, { st::aug,            "U" },
-			{ st::famas,          "R" }, { st::galil_ar,       "Q" },
-			{ st::sg553,          "V" }, { st::awp,            "Z" },
-			{ st::ssg08,          "a" }, { st::g3sg1,          "X" },
-			{ st::scar20,         "Y" }, { st::mac10,          "K" },
-			{ st::mp5sd,          "N" }, { st::mp7,            "N" },
-			{ st::mp9,            "R" }, { st::pp_bizon,       "M" },
-			{ st::p90,            "O" }, { st::ump45,          "L" },
-			{ st::nova,           "e" }, { st::sawed_off,      "c" },
-			{ st::xm1014,         "b" }, { st::mag7,           "d" },
-			{ st::m249,           "g" }, { st::negev,          "f" },
-			{ st::deagle,         "A" }, { st::dual_berettas,  "B" },
-			{ st::five_seven,     "C" }, { st::glock,          "D" },
-			{ st::p2000,          "E" }, { st::usps,           "G" },
-			{ st::p250,           "F" }, { st::cz75,           "I" },
-			{ st::tec9,           "H" }, { st::r8_revolver,    "J" },
-			{ st::taser,          "h" }, { st::c4,             "o" },
-			{ st::he_grenade,     "j" }, { st::flashbang,      "i" },
-			{ st::smoke_grenade,  "k" }, { st::molotov,        "l" },
-			{ st::incendiary,     "n" }, { st::decoy,          "m" },
-			{ st::knife,          "]" }, { st::healthshot,     "?" },
+			{ st::ak47,           "ak47" },         { st::m4a4,           "m4a1" },
+			{ st::m4a1s,          "m4a1_silencer" },{ st::aug,            "aug" },
+			{ st::famas,          "famas" },        { st::galil_ar,       "galilar" },
+			{ st::sg553,          "sg556" },        { st::awp,            "awp" },
+			{ st::ssg08,          "ssg08" },        { st::g3sg1,          "g3sg1" },
+			{ st::scar20,         "scar20" },       { st::mac10,          "mac10" },
+			{ st::mp5sd,          "mp5sd" },        { st::mp7,            "mp7" },
+			{ st::mp9,            "mp9" },          { st::pp_bizon,       "bizon" },
+			{ st::p90,            "p90" },          { st::ump45,          "ump45" },
+			{ st::nova,           "nova" },         { st::sawed_off,      "sawedoff" },
+			{ st::xm1014,         "xm1014" },       { st::mag7,           "mag7" },
+			{ st::m249,           "m249" },         { st::negev,          "negev" },
+			{ st::deagle,         "deagle" },       { st::dual_berettas,  "elite" },
+			{ st::five_seven,     "fiveseven" },    { st::glock,          "glock" },
+			{ st::p2000,          "hkp2000" },      { st::usps,           "usp_silencer" },
+			{ st::p250,           "p250" },         { st::cz75,           "cz75a" },
+			{ st::tec9,           "tec9" },         { st::r8_revolver,    "revolver" },
+			{ st::taser,          "taser" },        { st::c4,             "c4" },
+			{ st::he_grenade,     "hegrenade" },    { st::flashbang,      "flashbang" },
+			{ st::smoke_grenade,  "smokegrenade" }, { st::molotov,        "molotov" },
+			{ st::incendiary,     "incgrenade" },   { st::decoy,          "decoy" },
+			{ st::knife,          "knife" },        { st::healthshot,     "healthshot" },
 		};
 
 		const auto it = icons.find( subtype );
-		return it != icons.end( ) ? it->second : "?";
+		return it != icons.end( ) ? it->second : "";
 	}
 
 	std::string item::get_display_name( systems::collector::item_subtype subtype ) const

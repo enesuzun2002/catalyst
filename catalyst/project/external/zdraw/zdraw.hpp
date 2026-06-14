@@ -277,6 +277,7 @@ namespace zdraw {
 	[[nodiscard]] Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> load_texture_from_memory( std::span<const std::byte> data, int* out_width = nullptr, int* out_height = nullptr );
 	[[nodiscard]] Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> load_icon_from_memory( std::span<const std::byte> data, int* out_width = nullptr, int* out_height = nullptr );
 	[[nodiscard]] Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> load_texture_from_file( std::string_view filepath, int* out_width = nullptr, int* out_height = nullptr );
+	[[nodiscard]] Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> load_svg( std::span<const std::byte> data, float scale = 1.0f, int* out_width = nullptr, int* out_height = nullptr );
 
 	[[nodiscard]] font* add_font_from_memory( std::span<const std::byte> font_data, float size_pixels, int atlas_width = 512, int atlas_height = 512 );
 	[[nodiscard]] font* add_font_from_file( std::string_view filepath, float size_pixels, int atlas_width = 512, int atlas_height = 512 );

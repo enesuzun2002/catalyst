@@ -41,17 +41,23 @@ namespace features::esp {
 
 				if ( cfg.show_icon )
 				{
-					zdraw::push_font( g::render.fonts( ).weapons_15 );
+					const auto* ico = systems::g_icons.get( "molotov" );
+					if ( ico && ico->texture )
+					{
+						constexpr auto target_h{ 16.0f };
+						const auto target_w = ico->height > 0 ? target_h * static_cast< float >( ico->width ) / static_cast< float >( ico->height ) : target_h;
+						const auto x = std::floorf( screen.x - target_w * 0.5f );
+						const auto y = std::floorf( screen.y - target_h * 0.5f );
+						constexpr auto outline = zdraw::rgba{ 0, 0, 0, 255 };
 
-					const auto icon = std::string( "l" );
-					const auto [tw, th] = zdraw::measure_text( icon );
-					const auto x = std::floorf( screen.x - tw * 0.5f );
-					const auto y = std::floorf( screen.y - th * 0.5f );
+						draw_list.add_rect_textured( x - 1.0f, y, target_w, target_h, ico->texture.Get( ), 0.0f, 0.0f, 1.0f, 1.0f, outline );
+						draw_list.add_rect_textured( x + 1.0f, y, target_w, target_h, ico->texture.Get( ), 0.0f, 0.0f, 1.0f, 1.0f, outline );
+						draw_list.add_rect_textured( x, y - 1.0f, target_w, target_h, ico->texture.Get( ), 0.0f, 0.0f, 1.0f, 1.0f, outline );
+						draw_list.add_rect_textured( x, y + 1.0f, target_w, target_h, ico->texture.Get( ), 0.0f, 0.0f, 1.0f, 1.0f, outline );
+						draw_list.add_rect_textured( x, y, target_w, target_h, ico->texture.Get( ), 0.0f, 0.0f, 1.0f, 1.0f, cfg.color_molotov );
 
-					draw_list.add_text( x, y, icon, nullptr, cfg.color_molotov, zdraw::text_style::outlined );
-					zdraw::pop_font( );
-
-					y_offset += th - 5.5f;
+						y_offset += target_h - 5.5f;
+					}
 				}
 
 				if ( cfg.show_name )
@@ -92,17 +98,23 @@ namespace features::esp {
 
 			if ( cfg.show_icon )
 			{
-				zdraw::push_font( g::render.fonts( ).weapons_15 );
+				const auto* ico = systems::g_icons.get( this->get_icon( proj.subtype ) );
+				if ( ico && ico->texture )
+				{
+					constexpr auto target_h{ 16.0f };
+					const auto target_w = ico->height > 0 ? target_h * static_cast< float >( ico->width ) / static_cast< float >( ico->height ) : target_h;
+					const auto x = std::floorf( screen.x - target_w * 0.5f );
+					const auto y = std::floorf( screen.y - target_h * 0.5f );
+					constexpr auto outline = zdraw::rgba{ 0, 0, 0, 255 };
 
-				const auto icon = this->get_icon( proj.subtype );
-				const auto [tw, th] = zdraw::measure_text( icon );
-				const auto x = std::floorf( screen.x - tw * 0.5f );
-				const auto y = std::floorf( screen.y - th * 0.5f );
+					draw_list.add_rect_textured( x - 1.0f, y, target_w, target_h, ico->texture.Get( ), 0.0f, 0.0f, 1.0f, 1.0f, outline );
+					draw_list.add_rect_textured( x + 1.0f, y, target_w, target_h, ico->texture.Get( ), 0.0f, 0.0f, 1.0f, 1.0f, outline );
+					draw_list.add_rect_textured( x, y - 1.0f, target_w, target_h, ico->texture.Get( ), 0.0f, 0.0f, 1.0f, 1.0f, outline );
+					draw_list.add_rect_textured( x, y + 1.0f, target_w, target_h, ico->texture.Get( ), 0.0f, 0.0f, 1.0f, 1.0f, outline );
+					draw_list.add_rect_textured( x, y, target_w, target_h, ico->texture.Get( ), 0.0f, 0.0f, 1.0f, 1.0f, color );
 
-				draw_list.add_text( x, y, icon, nullptr, color, zdraw::text_style::outlined );
-				zdraw::pop_font( );
-
-				y_offset += th - 5.5f;
+					y_offset += target_h - 5.5f;
+				}
 			}
 
 			if ( cfg.show_name )
@@ -169,7 +181,7 @@ namespace features::esp {
 
 		for ( const auto& point : proj.fire_points )
 		{
-			for ( int i = 0; i < points_per_fire; ++i )
+			for ( auto i = 0; i < points_per_fire; ++i )
 			{
 				const auto angle = static_cast< float >( i ) / points_per_fire * std::numbers::pi_v<float> *2.0f;
 				const auto world = point + math::vector3{ std::cosf( angle ) * fire_radius, std::sinf( angle ) * fire_radius, 0.0f };
@@ -236,8 +248,8 @@ namespace features::esp {
 		}
 
 		const auto hull = std::span<const float>( reinterpret_cast< const float* >( lower.data( ) ), lower.size( ) * 2 );
-		const auto fill = zdraw::rgba( cfg.color_molotov.r, cfg.color_molotov.g, cfg.color_molotov.b, 50 );
-		const auto outline = zdraw::rgba( cfg.color_molotov.r, cfg.color_molotov.g, cfg.color_molotov.b, 150 );
+		const auto fill = zdraw::rgba( cfg.color_molotov.value.r, cfg.color_molotov.value.g, cfg.color_molotov.value.b, 50 );
+		const auto outline = zdraw::rgba( cfg.color_molotov.value.r, cfg.color_molotov.value.g, cfg.color_molotov.value.b, 150 );
 
 		draw_list.add_convex_poly_filled( hull, fill );
 		draw_list.add_polyline( hull, outline, true, 2.0f );
@@ -265,13 +277,13 @@ namespace features::esp {
 
 		switch ( type )
 		{
-		case st::he_grenade:    return "j";
-		case st::flashbang:     return "i";
-		case st::smoke_grenade: return "k";
-		case st::molotov:       return "l";
-		case st::molotov_fire:  return "l";
-		case st::decoy:         return "m";
-		default:                return "?";
+		case st::he_grenade:    return "hegrenade";
+		case st::flashbang:     return "flashbang";
+		case st::smoke_grenade: return "smokegrenade";
+		case st::molotov:       return "molotov";
+		case st::molotov_fire:  return "molotov";
+		case st::decoy:         return "decoy";
+		default:                return "";
 		}
 	}
 

@@ -111,6 +111,9 @@
     <ClCompile Include="project\external\zdraw\zdraw.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="project\external\lz4\lz4.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="project\stdafx.hpp">
@@ -131,7 +134,7 @@
     <ClInclude Include="project\utilities\math\math.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="project\utilities\fnv1a.hpp">
+    <ClInclude Include="project\external\fnv1a.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="project\core\settings.hpp">
@@ -537,6 +540,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="project\external\zdraw\zdraw.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="project\external\lz4\lz4.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="project\external\config.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

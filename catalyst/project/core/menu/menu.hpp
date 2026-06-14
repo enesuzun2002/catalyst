@@ -18,7 +18,7 @@ private:
 	void draw_misc( );
 
 	tab m_tab{ tab::combat };
-	bool m_open{ false };
+	bool m_open{};
 
 	float m_x{ 200.0f };
 	float m_y{ 150.0f };
@@ -26,5 +26,5 @@ private:
 	float m_h{ 425.0f };
 
 	static constexpr const char* k_weapon_groups[ ]{ "pistol", "smg", "rifle", "shotgun", "sniper", "lmg" };
-	int m_weapon_group{ 0 };
+	int m_weapon_group{};
 };

@@ -180,7 +180,7 @@ void menu::draw_combat( )
 			auto gx = win->bounds.x + style.window_padding_x;
 			const auto gy = win->bounds.y + win->cursor_y;
 
-			for ( int i = 0; i < 6; ++i )
+			for ( auto i = 0; i < 6; ++i )
 			{
 				auto [tw, th] = zdraw::measure_text( k_weapon_groups[ i ] );
 				const auto gr = zui::rect{ gx, gy, tw, bar_h };
@@ -266,26 +266,27 @@ void menu::draw_combat( )
 			zui::end_popup( );
 		}
 
-		zui::checkbox( "autostop##tb", cfg.triggerbot.autostop );
-
-		if ( zui::begin_popup( "##tb_as_popup", 200.0f ) )
-		{
-			zui::checkbox( "early autostop##tb", cfg.triggerbot.early_autostop );
-			zui::end_popup( );
-		}
-
 		zui::checkbox( "predictive##tb", cfg.triggerbot.predictive );
 		zui::end_group_box( );
 	}
 
 	if ( zui::begin_group_box( "other", col_w ) )
 	{
-		zui::checkbox( "penetration crosshair##ot", cfg.other.penetration_crosshair );
+		zui::checkbox( "penetration crosshair##ot", settings::g_combat.m_other.penetration_crosshair );
 
 		if ( zui::begin_popup( "##ot_colors_popup", 200.0f ) )
 		{
-			zui::color_picker( "can penetrate##ot", cfg.other.penetration_color_yes );
-			zui::color_picker( "cannot penetrate##ot", cfg.other.penetration_color_no );
+			zui::color_picker( "can penetrate##ot", settings::g_combat.m_other.penetration_color_yes );
+			zui::color_picker( "cannot penetrate##ot", settings::g_combat.m_other.penetration_color_no );
+			zui::end_popup( );
+		}
+
+		zui::checkbox( "zeusbot##ot", settings::g_combat.m_other.m_zeusbot.enabled );
+
+		if ( zui::begin_popup( "##ot_zeusbot_popup", 200.0f ) )
+		{
+			zui::keybind( "key##ot_zb", settings::g_combat.m_other.m_zeusbot.key );
+			zui::slider_float( "max fov##ot_zb", settings::g_combat.m_other.m_zeusbot.max_fov, 1.0f, 180.0f, "%.0f" );
 			zui::end_popup( );
 		}
 
@@ -307,12 +308,7 @@ void menu::draw_esp( )
 		if ( zui::begin_popup( "##bx_popup", 200.0f ) )
 		{
 			constexpr const char* box_styles[ ]{ "full", "cornered" };
-			auto bs = static_cast< int >( p.m_box.style );
-
-			if ( zui::combo( "style##bx", bs, box_styles, 2 ) )
-			{
-				p.m_box.style = static_cast< settings::esp::player::box::style_type >( bs );
-			}
+			zui::combo( "style##bx", p.m_box.style.value, box_styles, 2 );
 
 			zui::checkbox( "fill##bx", p.m_box.fill );
 			zui::checkbox( "outline##bx", p.m_box.outline );
@@ -340,12 +336,7 @@ void menu::draw_esp( )
 		if ( zui::begin_popup( "##hb_popup", 200.0f ) )
 		{
 			constexpr const char* hb_positions[ ]{ "left", "top", "bottom" };
-			auto hbp = static_cast< int >( p.m_health_bar.position );
-
-			if ( zui::combo( "position##hb", hbp, hb_positions, 3 ) )
-			{
-				p.m_health_bar.position = static_cast< settings::esp::player::health_bar::position_type >( hbp );
-			}
+			zui::combo( "position##hb", p.m_health_bar.position.value, hb_positions, 3 );
 
 			zui::checkbox( "outline##hb", p.m_health_bar.outline );
 			zui::checkbox( "gradient##hb", p.m_health_bar.gradient );
@@ -362,12 +353,7 @@ void menu::draw_esp( )
 		if ( zui::begin_popup( "##amb_popup", 200.0f ) )
 		{
 			constexpr const char* amb_positions[ ]{ "left", "top", "bottom" };
-			auto abp = static_cast< int >( p.m_ammo_bar.position );
-
-			if ( zui::combo( "position##amb", abp, amb_positions, 3 ) )
-			{
-				p.m_ammo_bar.position = static_cast< settings::esp::player::ammo_bar::position_type >( abp );
-			}
+			zui::combo( "position##amb", p.m_ammo_bar.position.value, amb_positions, 3 );
 
 			zui::checkbox( "outline##amb", p.m_ammo_bar.outline );
 			zui::checkbox( "gradient##amb", p.m_ammo_bar.gradient );
@@ -391,12 +377,7 @@ void menu::draw_esp( )
 		if ( zui::begin_popup( "##wp_popup", 200.0f ) )
 		{
 			constexpr const char* disp_types[ ]{ "text", "icon", "text + icon" };
-			auto dt = static_cast< int >( p.m_weapon.display );
-
-			if ( zui::combo( "display##wp", dt, disp_types, 3 ) )
-			{
-				p.m_weapon.display = static_cast< settings::esp::player::weapon::display_type >( dt );
-			}
+			zui::combo( "display##wp", p.m_weapon.display.value, disp_types, 3 );
 
 			zui::color_picker( "text color##wp", p.m_weapon.text_color );
 			zui::color_picker( "icon color##wp", p.m_weapon.icon_color );
@@ -419,18 +400,19 @@ void menu::draw_esp( )
 			constexpr const char* flag_names[ ]{ "money", "armor", "kit", "scoped", "defusing", "flashed", "distance" };
 			constexpr settings::esp::player::info_flags::flag flag_values[ ]{ settings::esp::player::info_flags::money, settings::esp::player::info_flags::armor, settings::esp::player::info_flags::kit, settings::esp::player::info_flags::scoped, settings::esp::player::info_flags::defusing, settings::esp::player::info_flags::flashed, settings::esp::player::info_flags::distance, };
 
-			for ( int i = 0; i < 7; ++i )
+			for ( auto i = 0; i < 7; ++i )
 			{
 				auto active = p.m_info_flags.has( flag_values[ i ] );
+
 				if ( zui::checkbox( flag_names[ i ], active ) )
 				{
 					if ( active )
 					{
-						p.m_info_flags.flags |= flag_values[ i ];
+						p.m_info_flags.flags.value |= flag_values[ i ];
 					}
 					else
 					{
-						p.m_info_flags.flags &= ~flag_values[ i ];
+						p.m_info_flags.flags.value &= ~flag_values[ i ];
 					}
 				}
 			}
@@ -557,6 +539,357 @@ void menu::draw_misc( )
 
 	if ( zui::begin_group_box( "config", col_w ) )
 	{
+		static std::string search_buf;
+		static std::vector<std::wstring> config_list;
+		static int selected{ -1 };
+		static bool needs_refresh{ true };
+		static bool confirm_delete{};
+		static float confirm_delete_timer{};
+		static bool confirm_save{};
+		static float confirm_save_timer{};
+
+		if ( needs_refresh )
+		{
+			config_list = config::registry::list( );
+			needs_refresh = false;
+
+			if ( selected >= static_cast< int >( config_list.size( ) ) )
+			{
+				selected = -1;
+			}
+		}
+
+		const auto dt = zdraw::get_delta_time( );
+
+		if ( confirm_delete && ( confirm_delete_timer += dt ) > 3.0f )
+		{
+			confirm_delete = false;
+		}
+
+		if ( confirm_save && ( confirm_save_timer += dt ) > 3.0f )
+		{
+			confirm_save = false;
+		}
+
+		auto to_narrow = []( const std::wstring& w )
+			{
+				char buf[ 128 ]{};
+				WideCharToMultiByte( CP_UTF8, 0, w.c_str( ), -1, buf, sizeof( buf ), nullptr, nullptr );
+				return std::string( buf );
+			};
+
+		auto to_wide = []( const std::string& s )
+			{
+				wchar_t buf[ 128 ]{};
+				MultiByteToWideChar( CP_UTF8, 0, s.c_str( ), -1, buf, 128 );
+				return std::wstring( buf );
+			};
+
+		auto to_lower = []( std::string s )
+			{
+				for ( auto& c : s )
+				{
+					c = static_cast< char >( std::tolower( static_cast< unsigned char >( c ) ) );
+				}
+				return s;
+			};
+
+		zui::text_input( "##config_search", search_buf, 64, "search or new name..." );
+
+		const auto& s = zui::get_style( );
+		const auto [row_avail_w, row_avail_h] = zui::get_content_region_avail( );
+		constexpr auto btn_h{ 22.0f };
+		const auto btn_w = ( row_avail_w - s.item_spacing_x * 2.0f ) / 3.0f;
+		const auto has_selection = selected >= 0 && selected < static_cast< int >( config_list.size( ) );
+
+		auto exact_match{ false };
+
+		if ( !search_buf.empty( ) )
+		{
+			const auto wbuf = to_wide( search_buf );
+
+			for ( const auto& cfg : config_list )
+			{
+				if ( _wcsicmp( cfg.c_str( ), wbuf.c_str( ) ) == 0 )
+				{
+					exact_match = true;
+					break;
+				}
+			}
+		}
+
+		const auto can_create = !search_buf.empty( ) && !exact_match;
+
+		if ( can_create )
+		{
+			if ( zui::button( "create##cfg", btn_w, btn_h ) )
+			{
+				const auto wname = to_wide( search_buf );
+				config::registry::save( wname );
+				needs_refresh = true;
+
+				const auto fresh = config::registry::list( );
+				for ( int i = 0; i < static_cast< int >( fresh.size( ) ); ++i )
+				{
+					if ( _wcsicmp( fresh[ i ].c_str( ), wname.c_str( ) ) == 0 )
+					{
+						selected = i;
+						break;
+					}
+				}
+
+				search_buf.clear( );
+			}
+		}
+		else if ( !confirm_save )
+		{
+			if ( zui::button( has_selection ? "save##cfg" : "save##cfg_dis", btn_w, btn_h ) && has_selection )
+			{
+				confirm_save = true;
+				confirm_save_timer = 0.0f;
+			}
+		}
+		else
+		{
+			zui::push_style_color( zui::style_color::button_bg, zdraw::rgba{ 180, 140, 60, 120 } );
+
+			if ( zui::button( "confirm##save", btn_w, btn_h ) && has_selection )
+			{
+				config::registry::save( config_list[ selected ] );
+				confirm_save = false;
+			}
+
+			zui::pop_style_color( 1 );
+		}
+
+		zui::same_line( );
+
+		if ( zui::button( has_selection ? "load##cfg" : "load##cfg_dis", btn_w, btn_h ) && has_selection )
+		{
+			config::registry::load( config_list[ selected ] );
+		}
+
+		zui::same_line( );
+
+		if ( !confirm_delete )
+		{
+			if ( zui::button( has_selection ? "delete##cfg" : "delete##cfg_dis", btn_w, btn_h ) && has_selection )
+			{
+				confirm_delete = true;
+				confirm_delete_timer = 0.0f;
+			}
+		}
+		else
+		{
+			zui::push_style_color( zui::style_color::button_bg, zdraw::rgba{ 180, 60, 60, 120 } );
+
+			if ( zui::button( "confirm##del", btn_w, btn_h ) && has_selection )
+			{
+				config::registry::remove( config_list[ selected ] );
+				selected = -1;
+				search_buf.clear( );
+				needs_refresh = true;
+				confirm_delete = false;
+			}
+
+			zui::pop_style_color( 1 );
+		}
+
+		zui::new_line( );
+
+		{
+			static std::unordered_map<zui::widget_id, float> hover_anims;
+			static std::unordered_map<zui::widget_id, float> sel_anims;
+			static std::unordered_map<zui::widget_id, float> last_click_time;
+			static float anim_clock{ 0.0f };
+			anim_clock += dt;
+
+			const auto win = zui::detail::get_current_window( );
+			const auto blocking = zui::detail::overlay_blocking_input( );
+			const auto search_lower = to_lower( search_buf );
+			auto any_shown{ false };
+
+			for ( int i = 0; i < static_cast< int >( config_list.size( ) ); ++i )
+			{
+				const auto name = to_narrow( config_list[ i ] );
+
+				if ( !search_lower.empty( ) && to_lower( name ).find( search_lower ) == std::string::npos )
+				{
+					continue;
+				}
+
+				constexpr auto row_h{ 24.0f };
+				const auto [list_avail_w, list_avail_h] = zui::get_content_region_avail( );
+
+				const auto rx = win->bounds.x + s.window_padding_x;
+				const auto ry = win->bounds.y + win->cursor_y;
+				const auto row_rect = zui::rect{ rx, ry, list_avail_w, row_h };
+
+				const auto id = zui::detail::generate_id( name );
+				const auto is_selected = ( selected == i );
+				const auto row_hovered = !blocking && zui::detail::mouse_hovered( row_rect );
+
+				auto& hover_anim = hover_anims[ id ];
+				auto& sel_anim = sel_anims[ id ];
+				hover_anim += ( ( row_hovered ? 1.0f : 0.0f ) - hover_anim ) * std::min( 12.0f * dt, 1.0f );
+				sel_anim += ( ( is_selected ? 1.0f : 0.0f ) - sel_anim ) * std::min( 10.0f * dt, 1.0f );
+
+				auto& dl = zdraw::get_draw_list( );
+
+				if ( sel_anim > 0.01f )
+				{
+					auto bg = s.accent;
+					bg.a = static_cast< std::uint8_t >( 25.0f * sel_anim );
+					dl.add_rect_filled( rx, ry, list_avail_w, row_h, bg );
+				}
+
+				if ( hover_anim > 0.01f && !is_selected )
+				{
+					dl.add_rect_filled( rx, ry, list_avail_w, row_h, zdraw::rgba{ 255, 255, 255, static_cast< std::uint8_t >( 6.0f * hover_anim ) } );
+				}
+
+				if ( sel_anim > 0.01f )
+				{
+					auto bar = s.accent;
+					bar.a = static_cast< std::uint8_t >( 255.0f * sel_anim );
+					dl.add_rect_filled( rx, ry + 5.0f, 2.0f, row_h - 10.0f, bar );
+				}
+
+				const auto [tw, th] = zdraw::measure_text( name );
+				const auto text_dim = zdraw::rgba{ 130, 130, 130, 255 };
+				const auto name_col = zui::lerp( text_dim, s.text, std::max( hover_anim, sel_anim ) );
+				dl.add_text( rx + ( is_selected ? 10.0f : 6.0f ), ry + ( row_h - th ) * 0.5f, name, nullptr, name_col );
+
+				if ( row_hovered && zui::detail::mouse_clicked( ) )
+				{
+					auto& last_t = last_click_time[ id ];
+
+					if ( anim_clock - last_t < 0.4f )
+					{
+						config::registry::load( config_list[ i ] );
+						last_t = 0.0f;
+					}
+					else
+					{
+						selected = i;
+						confirm_delete = false;
+						confirm_save = false;
+						last_t = anim_clock;
+					}
+				}
+
+				win->cursor_y += row_h;
+				win->line_height = 0.0f;
+				any_shown = true;
+			}
+
+			if ( !any_shown )
+			{
+				const auto msg = config_list.empty( ) ? "no configs" : "no results";
+				const auto text_dim = zdraw::rgba{ 130, 130, 130, 255 };
+				const auto [tw, th] = zdraw::measure_text( msg );
+
+				const auto rx = win->bounds.x + s.window_padding_x;
+				const auto ry = win->bounds.y + win->cursor_y;
+
+				zdraw::get_draw_list( ).add_text( rx + 6.0f, ry + 6.0f, msg, nullptr, text_dim );
+
+				win->cursor_y += th + 12.0f;
+				win->line_height = 0.0f;
+			}
+
+			win->cursor_y += s.item_spacing_y;
+		}
+
+		{
+			const auto [foot_avail_w, foot_avail_h] = zui::get_content_region_avail( );
+			const auto half_w = ( foot_avail_w - s.item_spacing_x ) * 0.5f;
+
+			if ( zui::button( "export##clipboard", half_w, btn_h ) )
+			{
+				std::string name;
+
+				if ( has_selection )
+				{
+					name = to_narrow( config_list[ selected ] );
+				}
+				else if ( !search_buf.empty( ) )
+				{
+					name = search_buf;
+				}
+
+				const auto code = config::export_share( name );
+				if ( !code.empty( ) && OpenClipboard( nullptr ) )
+				{
+					EmptyClipboard( );
+					const auto size = ( code.size( ) + 1 ) * sizeof( char );
+					auto mem = GlobalAlloc( GMEM_MOVEABLE, size );
+
+					if ( mem )
+					{
+						auto dest = GlobalLock( mem );
+						if ( dest )
+						{
+							std::memcpy( dest, code.c_str( ), size );
+							GlobalUnlock( mem );
+						}
+
+						SetClipboardData( CF_TEXT, mem );
+					}
+
+					CloseClipboard( );
+				}
+			}
+
+			zui::same_line( );
+
+			if ( zui::button( "import##clipboard", half_w, btn_h ) )
+			{
+				std::string clip;
+
+				if ( OpenClipboard( nullptr ) )
+				{
+					auto mem = GetClipboardData( CF_TEXT );
+					if ( mem )
+					{
+						auto data = static_cast< const char* >( GlobalLock( mem ) );
+						if ( data )
+						{
+							clip = data;
+							GlobalUnlock( mem );
+						}
+					}
+
+					CloseClipboard( );
+				}
+
+				if ( !clip.empty( ) )
+				{
+					const auto result = config::import_share( clip );
+					if ( result.success )
+					{
+						std::wstring wname;
+
+						if ( !result.name.empty( ) )
+						{
+							wname = to_wide( result.name );
+						}
+						else
+						{
+							SYSTEMTIME st{};
+							GetLocalTime( &st );
+							wchar_t buf[ 128 ]{};
+							std::swprintf( buf, 128, L"import_%04d%02d%02d_%02d%02d%02d", st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond );
+							wname = buf;
+						}
+
+						config::registry::save( wname );
+						needs_refresh = true;
+					}
+				}
+			}
+		}
+
 		zui::end_group_box( );
 	}
 }

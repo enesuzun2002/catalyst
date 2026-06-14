@@ -210,7 +210,7 @@ namespace features::combat {
 			return true;
 		}
 
-		for ( std::size_t si = 0; si < segments.size( ); ++si )
+		for ( auto si = 0ull; si < segments.size( ); ++si )
 		{
 			const auto& seg = segments[ si ];
 
@@ -444,6 +444,15 @@ namespace features::combat {
 		ctx.last_shot_time = g::memory.read<float>( ctx.weapon + SCHEMA( "C_CSWeaponBase", "m_fLastShotTime"_hash ) );
 		ctx.is_full_auto = g::memory.read<bool>( ctx.weapon_vdata + SCHEMA( "CCSWeaponBaseVData", "m_bIsFullAuto"_hash ) );
 
+		{
+			const auto flags = g::memory.read<std::uint32_t>( local_pawn + SCHEMA( "C_BaseEntity", "m_fFlags"_hash ) );
+			const auto inaccuracy_stand = g::memory.read<std::pair<float, float>>( ctx.weapon_vdata + SCHEMA( "CCSWeaponBaseVData", "m_flInaccuracyStand"_hash ) );
+			const auto inaccuracy_crouch = g::memory.read<std::pair<float, float>>( ctx.weapon_vdata + SCHEMA( "CCSWeaponBaseVData", "m_flInaccuracyCrouch"_hash ) );
+
+			const auto& etc = ( flags & ( 1 << 1 ) ) != 0 ? inaccuracy_crouch : inaccuracy_stand;
+			ctx.base_inaccuracy = g::memory.read<int>( ctx.weapon + SCHEMA( "C_CSWeaponBase", "m_weaponMode"_hash ) ) ? etc.second : etc.first;
+		}
+
 		if ( ctx.weapon_type == cstypes::sniper )
 		{
 			ctx.weapon_ready = ( ctx.current_time - ctx.last_shot_time >= ctx.cycle_time );
@@ -542,7 +551,7 @@ namespace features::combat {
 			const auto spread = this->calculate_spread( seed, ctx.inaccuracy, ctx.spread, ctx.recoil_index, ctx.item_def_idx, ctx.num_bullets );
 			const auto direction = ( forward + right * spread.x + up * spread.y ).normalized( );
 
-			for ( int i = 0; i < capsule_count; ++i )
+			for ( auto i = 0; i < capsule_count; ++i )
 			{
 				if ( this->ray_hits_capsule( eye_pos, direction, capsules[ i ].start, capsules[ i ].end, capsules[ i ].radius ) )
 				{
@@ -630,223 +639,6 @@ namespace features::combat {
 		};
 	}
 
-	math::vector3 shared::extrapolate_stop( const math::vector3& pos ) const
-	{
-		const auto pawn = systems::g_local.pawn( );
-		if ( !pawn )
-		{
-			return pos;
-		}
-
-		const auto movement_services = g::memory.read<std::uintptr_t>( pawn + SCHEMA( "C_BasePlayerPawn", "m_pMovementServices"_hash ) );
-		if ( !movement_services )
-		{
-			return pos;
-		}
-
-		const auto flags = g::memory.read<std::uint32_t>( pawn + SCHEMA( "C_BaseEntity", "m_fFlags"_hash ) );
-		if ( !( flags & 1 ) )
-		{
-			return pos;
-		}
-
-		auto velocity = g::memory.read<math::vector3>( pawn + SCHEMA( "C_BaseEntity", "m_vecAbsVelocity"_hash ) );
-		velocity.z = 0.0f;
-
-		if ( velocity.length_2d( ) <= 1.0f )
-		{
-			return pos;
-		}
-
-		const auto surface_friction = g::memory.read<float>( movement_services + SCHEMA( "CPlayer_MovementServices_Humanoid", "m_flSurfaceFriction"_hash ) );
-		const auto max_speed = g::memory.read<float>( movement_services + SCHEMA( "CPlayer_MovementServices", "m_flMaxspeed"_hash ) );
-		const auto player_friction = g::memory.read<float>( pawn + SCHEMA( "C_BaseEntity", "m_flFriction"_hash ) );
-		const auto current_time = this->m_ctx.current_time;
-		const auto tick_complete_time = g::memory.read<float>( movement_services + SCHEMA( "CCSPlayer_MovementServices", "m_flOffsetTickCompleteTime"_hash ) );
-		const auto stashed_speed = g::memory.read<float>( movement_services + SCHEMA( "CCSPlayer_MovementServices", "m_flOffsetTickStashedSpeed"_hash ) );
-
-		const auto friction_cvar = systems::g_convars.get<float>( CONVAR( "sv_friction"_hash ) );
-		const auto stopspeed_cvar = systems::g_convars.get<float>( CONVAR( "sv_stopspeed"_hash ) );
-		const auto accelerate_cvar = systems::g_convars.get<float>( CONVAR( "sv_accelerate"_hash ) );
-		const auto use_weapon_speed = systems::g_convars.get<bool>( CONVAR( "sv_accelerate_use_weapon_speed"_hash ) );
-		const auto water_slow_cvar = systems::g_convars.get<float>( CONVAR( "sv_water_slow_amount"_hash ) );
-
-		const auto buttons = g::memory.read<std::uintptr_t>( movement_services + SCHEMA( "CPlayer_MovementServices", "m_nButtons"_hash ) );
-		const auto ducking_state = g::memory.read<bool>( movement_services + SCHEMA( "CCSPlayer_MovementServices", "m_bDucking"_hash ) );
-
-		const auto is_ducking = ( flags & 2 ) || ducking_state || ( buttons & static_cast< std::uintptr_t >( cstypes::in_duck ) );
-		const auto is_sprinting = !is_ducking && ( buttons & static_cast< std::uintptr_t >( cstypes::in_sprint ) );
-
-		const auto water_level = g::memory.read<float>( pawn + SCHEMA( "C_BaseEntity", "m_flWaterLevel"_hash ) );
-		const auto submerged = static_cast< std::uint32_t >( water_level * 4.0f + 1.0f ) >= 2;
-
-		auto weapon_speed_ratio{ 1.0f };
-		auto scoped_slowdown{ false };
-
-		if ( use_weapon_speed && this->m_ctx.weapon_vdata )
-		{
-			const auto wpn_speed = g::memory.read<float>( this->m_ctx.weapon_vdata + SCHEMA( "CCSWeaponBaseVData", "m_flMaxSpeed"_hash ) );
-			weapon_speed_ratio = std::fminf( 1.0f, wpn_speed / 250.0f );
-
-			if ( this->m_ctx.weapon )
-			{
-				const auto zoom = g::memory.read<std::int32_t>( this->m_ctx.weapon + SCHEMA( "C_CSWeaponBaseGun", "m_zoomLevel"_hash ) );
-				const auto zoom_count = g::memory.read<std::int32_t>( this->m_ctx.weapon_vdata + SCHEMA( "CCSWeaponBaseVData", "m_nZoomLevels"_hash ) );
-
-				scoped_slowdown = zoom > 0 && zoom_count > 1 && ( wpn_speed * 0.52f ) < 110.0f;
-			}
-		}
-
-		const auto compute_friction = [ & ]( math::vector3& vel, bool first_tick )
-			{
-				const auto spd = first_tick && current_time <= tick_complete_time ? stashed_speed : vel.length( );
-				if ( spd < 0.1f )
-				{
-					return;
-				}
-
-				const auto control = std::fmaxf( spd, stopspeed_cvar );
-				const auto drop = control * friction_cvar * surface_friction * player_friction * cstypes::tick_interval;
-				const auto adjusted = std::fmaxf( spd - drop, 0.0f );
-
-				if ( adjusted < spd )
-				{
-					vel *= adjusted / spd;
-				}
-			};
-
-		const auto compute_acceleration = [ & ]( const math::vector3& vel, const math::vector3& dir, float wish_spd ) -> float
-			{
-				const auto base = std::fmaxf( 250.0f, wish_spd );
-				auto factor{ 1.0f };
-				auto cap = base;
-
-				if ( use_weapon_speed )
-				{
-					cap = base * weapon_speed_ratio;
-
-					if ( ( !is_ducking && !is_sprinting ) || scoped_slowdown )
-					{
-						factor = weapon_speed_ratio;
-					}
-				}
-
-				auto accel_base = base;
-
-				if ( submerged )
-				{
-					cap *= water_slow_cvar;
-					accel_base = is_sprinting ? base : base * water_slow_cvar;
-				}
-
-				if ( is_ducking )
-				{
-					cap *= 0.34f;
-					factor = std::fminf( 0.34f, factor );
-				}
-
-				auto final_cap = accel_base * factor;
-				auto accel = accelerate_cvar;
-
-				if ( is_sprinting && !scoped_slowdown )
-				{
-					final_cap *= 0.52f;
-
-					const auto threshold = cap * 0.52f - 5.0f;
-					const auto proj = std::fmaxf( 0.0f, vel.dot( dir ) );
-
-					if ( proj > threshold )
-					{
-						const auto blend = ( proj - threshold ) / std::fmaxf( 0.001f, cap * 0.52f - threshold );
-						accel *= std::fmaxf( 0.0f, 1.0f - std::fminf( 1.0f, blend ) );
-					}
-				}
-
-				const auto gain = accel * cstypes::tick_interval * final_cap * surface_friction;
-				const auto current_proj = vel.dot( dir );
-
-				return std::fminf( gain, std::fmaxf( 0.0f, -current_proj ) );
-			};
-
-		const auto stop_threshold = max_speed * 0.34f;
-		auto sim_pos = pos;
-		auto sim_vel = velocity;
-
-		for ( auto tick = 0; tick < 20; ++tick )
-		{
-			if ( sim_vel.length_2d( ) <= stop_threshold )
-			{
-				break;
-			}
-
-			compute_friction( sim_vel, tick == 0 );
-
-			if ( sim_vel.length_2d( ) <= stop_threshold )
-			{
-				break;
-			}
-
-			auto wish_dir = math::vector3{ -sim_vel.x, -sim_vel.y, 0.0f };
-			const auto wish_len = wish_dir.length( );
-
-			if ( wish_len > 0.0001f )
-			{
-				wish_dir *= 1.0f / wish_len;
-			}
-
-			const auto accel_amount = compute_acceleration( sim_vel, wish_dir, wish_len );
-
-			sim_vel.x += wish_dir.x * accel_amount;
-			sim_vel.y += wish_dir.y * accel_amount;
-
-			sim_pos.x += sim_vel.x * cstypes::tick_interval;
-			sim_pos.y += sim_vel.y * cstypes::tick_interval;
-		}
-
-		return sim_pos;
-	}
-
-	bool shared::is_sniper_accurate( ) const
-	{
-		if ( this->m_ctx.weapon_type != cstypes::sniper )
-		{
-			return true;
-		}
-
-		const auto pawn = systems::g_local.pawn( );
-		if ( !pawn )
-		{
-			return false;
-		}
-
-		const auto flags = g::memory.read<std::uint32_t>( pawn + SCHEMA( "C_BaseEntity", "m_fFlags"_hash ) );
-		if ( !( flags & 1 ) )
-		{
-			return true;
-		}
-
-		const auto camera_services = g::memory.read<std::uintptr_t>( pawn + SCHEMA( "C_BasePlayerPawn", "m_pCameraServices"_hash ) );
-		if ( !camera_services )
-		{
-			return false;
-		}
-
-		auto scope_inaccuracy = g::memory.read<float>( camera_services + SCHEMA( "CCSPlayer_CameraServices", "m_vClientScopeInaccuracy"_hash ) );
-		if ( scope_inaccuracy <= 1e-6f )
-		{
-			scope_inaccuracy = 0.0f;
-		}
-
-		switch ( this->m_ctx.item_def_idx )
-		{
-		case 40:  return scope_inaccuracy <= 0.00089f;
-		case 9:   return scope_inaccuracy <= 0.0005f;
-		case 38:  return scope_inaccuracy <= 0.0012f;
-		case 11:  return scope_inaccuracy <= 0.0012f;
-		default:  return scope_inaccuracy <= 0.00089f;
-		}
-	}
-
 	float shared::get_prediction_time( ) const
 	{
 		const auto pawn = systems::g_local.pawn( );
@@ -857,7 +649,7 @@ namespace features::combat {
 			return 0.0f;
 		}
 
-		const auto ping = g::memory.read<std::int32_t>( controller + SCHEMA( "CCSPlayerController", "m_iPing"_hash ) );
+		const auto ping = g::memory.read<int>( controller + SCHEMA( "CCSPlayerController", "m_iPing"_hash ) );
 		const auto latency = static_cast< float >( ping ) * 0.001f;
 		const auto interp_time = g::memory.read<float>( pawn + 0x290 ); // client @ 48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC ? 49 63 D8 48 8B F1
 
@@ -1015,6 +807,11 @@ namespace features::combat {
 		const auto point_on_ray = ray_origin + ray_dir * s;
 
 		return ( point_on_ray - point_on_capsule ).length_sqr( ) <= radius * radius;
+	}
+
+	bool shared::is_weapon_max_accuracy( ) const
+	{
+		return this->m_ctx.valid && this->m_ctx.inaccuracy <= this->m_ctx.base_inaccuracy + 0.0001f;
 	}
 
 } // namespace features::combat

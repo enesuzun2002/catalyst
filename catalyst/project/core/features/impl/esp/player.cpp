@@ -83,7 +83,7 @@ namespace features::esp {
 
 	void player::add_box( zdraw::draw_list& draw_list, const systems::bounds::data& bounds, const settings::esp::player::box& cfg, bool is_visible )
 	{
-		const auto& color = is_visible ? cfg.visible_color : cfg.occluded_color;
+		const auto& color = is_visible ? cfg.visible_color.value : cfg.occluded_color.value;
 
 		const auto x = std::floorf( bounds.min.x );
 		const auto y = std::floorf( bounds.min.y );
@@ -126,7 +126,7 @@ namespace features::esp {
 		}
 		else
 		{
-			const auto corner = std::min( cfg.corner_length, std::min( w, h ) * 0.4f );
+			const auto corner = std::min( cfg.corner_length.value, std::min( w, h ) * 0.4f );
 
 			if ( cfg.outline )
 			{
@@ -140,7 +140,7 @@ namespace features::esp {
 
 	void player::add_skeleton( zdraw::draw_list& draw_list, const systems::bones::data& bones, const settings::esp::player::skeleton& cfg, bool is_visible )
 	{
-		const auto& color = is_visible ? cfg.visible_color : cfg.occluded_color;
+		const auto& color = is_visible ? cfg.visible_color.value : cfg.occluded_color.value;
 
 		constexpr std::array<std::pair<std::uint32_t, std::uint32_t>, 19> connections
 		{ {
@@ -181,7 +181,7 @@ namespace features::esp {
 
 	void player::add_hitboxes( zdraw::draw_list& draw_list, const systems::bones::data& bones, const systems::collector::player& player, const settings::esp::player::hitboxes& cfg, float current_time )
 	{
-		const auto& color = player.is_visible ? cfg.visible_color : cfg.occluded_color;
+		const auto& color = player.is_visible ? cfg.visible_color.value : cfg.occluded_color.value;
 		const auto eye_pos = systems::g_view.origin( );
 
 		auto& anim = this->m_animations[ player.controller ];
@@ -360,12 +360,12 @@ namespace features::esp {
 							}
 						};
 
-					for ( std::size_t i = 0; i + 5 < tris.size( ); i += 6 )
+					for ( auto i = 0ull; i + 5 < tris.size( ); i += 6 )
 					{
 						clip_triangle_above( tris[ i ], tris[ i + 1 ], tris[ i + 2 ], tris[ i + 3 ], tris[ i + 4 ], tris[ i + 5 ] );
 					}
 
-					for ( std::size_t i = 0; i + 5 < clipped.size( ); i += 6 )
+					for ( auto i = 0ull; i + 5 < clipped.size( ); i += 6 )
 					{
 						draw_list.add_triangle_filled( clipped[ i ], clipped[ i + 1 ], clipped[ i + 2 ], clipped[ i + 3 ], clipped[ i + 4 ], clipped[ i + 5 ], red );
 					}
@@ -392,7 +392,7 @@ namespace features::esp {
 	{
 		auto& anim = this->m_animations[ player.controller ];
 
-		constexpr auto bar_size{ 3.5f };
+		constexpr auto bar_size{ 2.5f };
 		constexpr auto padding{ 4.0f };
 
 		const auto clamped_health = std::clamp( player.health, 0, 100 );
@@ -496,7 +496,7 @@ namespace features::esp {
 	{
 		auto& anim = this->m_animations[ player.controller ];
 
-		constexpr auto bar_size{ 3.5f };
+		constexpr auto bar_size{ 2.5f };
 		constexpr auto padding{ 4.0f };
 
 		const auto clamped_ammo = std::clamp( player.weapon.ammo, 0, player.weapon.max_ammo );
@@ -586,10 +586,10 @@ namespace features::esp {
 		{
 			zdraw::push_font( g::render.fonts( ).pixel7_10 );
 
-			const auto text = std::format( "{}/{}", clamped_ammo, player.weapon.max_ammo );
+			const auto text = std::to_string( clamped_ammo );
 			const auto [text_w, text_h] = zdraw::measure_text( text );
-			const auto text_x = std::floorf( x + ( bar_w * 0.5f ) - ( text_w * 0.5f ) );
-			const auto text_y = vertical ? std::floorf( y + bar_h - filled - text_h - 2.0f ) : std::floorf( y + bar_h + 2.0f );
+			const auto text_x = vertical ? std::floorf( x + ( bar_w * 0.5f ) - ( text_w * 0.5f ) ) : std::floorf( x + filled - ( text_w * 0.5f ) );
+			const auto text_y = vertical ? std::floorf( y + bar_h - filled - ( text_h * 0.5f ) ) : std::floorf( y + ( bar_h * 0.5f ) - ( text_h * 0.5f ) );
 
 			draw_list.add_text( text_x, text_y, text, nullptr, cfg.text_color, zdraw::text_style::outlined );
 			zdraw::pop_font( );
@@ -618,17 +618,23 @@ namespace features::esp {
 
 		if ( cfg.display == settings::esp::player::weapon::display_type::icon || cfg.display == settings::esp::player::weapon::display_type::text_and_icon )
 		{
-			zdraw::push_font( g::render.fonts( ).weapons_15 );
+			const auto* ico = systems::g_icons.get( player.weapon.name );
+			if ( ico && ico->texture )
+			{
+				constexpr auto target_h{ 16.0f };
+				const auto target_w = ico->height > 0 ? target_h * static_cast< float >( ico->width ) / static_cast< float >( ico->height ) : target_h;
+				const auto icon_x = std::floorf( bounds.min.x + ( bounds.width( ) * 0.5f ) - ( target_w * 0.5f ) );
+				const auto icon_y = std::floorf( bounds.max.y + 2.0f + offsets.bottom + total_height );
+				constexpr auto outline = zdraw::rgba{ 0, 0, 0, 255 };
 
-			const auto icon = this->get_weapon_icon( player.weapon.name );
-			const auto [icon_w, icon_h] = zdraw::measure_text( icon );
-			const auto icon_x = std::floorf( bounds.min.x + ( bounds.width( ) * 0.5f ) - ( icon_w * 0.5f ) );
-			const auto icon_y = std::floorf( bounds.max.y + 2.0f + offsets.bottom + total_height );
+				draw_list.add_rect_textured( icon_x - 1.0f, icon_y, target_w, target_h, ico->texture.Get( ), 0.0f, 0.0f, 1.0f, 1.0f, outline );
+				draw_list.add_rect_textured( icon_x + 1.0f, icon_y, target_w, target_h, ico->texture.Get( ), 0.0f, 0.0f, 1.0f, 1.0f, outline );
+				draw_list.add_rect_textured( icon_x, icon_y - 1.0f, target_w, target_h, ico->texture.Get( ), 0.0f, 0.0f, 1.0f, 1.0f, outline );
+				draw_list.add_rect_textured( icon_x, icon_y + 1.0f, target_w, target_h, ico->texture.Get( ), 0.0f, 0.0f, 1.0f, 1.0f, outline );
+				draw_list.add_rect_textured( icon_x, icon_y, target_w, target_h, ico->texture.Get( ), 0.0f, 0.0f, 1.0f, 1.0f, cfg.icon_color );
 
-			draw_list.add_text( icon_x, icon_y, icon, nullptr, cfg.icon_color, zdraw::text_style::outlined );
-			zdraw::pop_font( );
-
-			total_height += icon_h + 2.0f;
+				total_height += target_h + 2.0f;
+			}
 		}
 
 		if ( cfg.display == settings::esp::player::weapon::display_type::text || cfg.display == settings::esp::player::weapon::display_type::text_and_icon )
@@ -715,31 +721,6 @@ namespace features::esp {
 		zdraw::pop_font( );
 
 		offsets.right += max_w + 4.0f;
-	}
-
-	std::string player::get_weapon_icon( const std::string& weapon_name )
-	{
-		static const std::unordered_map<std::string, std::string> icons
-		{
-			{ "knife_ct", "]" }, { "knife_t", "[" }, { "knife", "]" },
-			{ "deagle", "A" }, { "elite", "B" }, { "fiveseven", "C" },
-			{ "glock", "D" }, { "revolver", "J" }, { "hkp2000", "E" },
-			{ "p250", "F" }, { "usp_silencer", "G" }, { "tec9", "H" },
-			{ "cz75a", "I" }, { "mac10", "K" }, { "ump45", "L" },
-			{ "bizon", "M" }, { "mp7", "N" }, { "mp9", "R" },
-			{ "p90", "O" }, { "mp5sd", "N" }, { "galilar", "Q" },
-			{ "famas", "R" }, { "m4a1_silencer", "T" }, { "m4a1", "S" },
-			{ "aug", "U" }, { "sg556", "V" }, { "ak47", "W" },
-			{ "g3sg1", "X" }, { "scar20", "Y" }, { "awp", "Z" },
-			{ "ssg08", "a" }, { "xm1014", "b" }, { "sawedoff", "c" },
-			{ "mag7", "d" }, { "nova", "e" }, { "negev", "f" },
-			{ "m249", "g" }, { "taser", "h" }, { "flashbang", "i" },
-			{ "hegrenade", "j" }, { "smokegrenade", "k" }, { "molotov", "l" },
-			{ "decoy", "m" }, { "incgrenade", "n" }, { "c4", "o" },
-		};
-
-		const auto it = icons.find( weapon_name );
-		return it != icons.end( ) ? it->second : "?";
 	}
 
 } // namespace features::esp

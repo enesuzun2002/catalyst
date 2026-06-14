@@ -24,12 +24,13 @@
 #include <external/zdraw/zui/zui.hpp>
 #include <external/poly2d.hpp>
 #include <external/xorstr.hpp>
+#include <external/fnv1a.hpp>
+#include <external/config.hpp>
 
 // resources
 #include <resources/fonts/mochi.hpp>
 #include <resources/fonts/pixel7.hpp>
 #include <resources/fonts/pretzel.hpp>
-#include <resources/fonts/weapons.hpp>
 
 // utilities
 #include <utilities/animation/animation.hpp>
@@ -41,7 +42,6 @@
 #include <utilities/offsets/offsets.hpp>
 #include <utilities/timing/timing.hpp>
 #include <utilities/cstypes.hpp>
-#include <utilities/fnv1a.hpp>
 #include <utilities/random.hpp>
 
 // core

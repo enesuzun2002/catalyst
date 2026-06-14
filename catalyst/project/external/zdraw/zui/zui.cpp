@@ -157,6 +157,42 @@ namespace
 				return true;
 			}
 
+			case WM_MBUTTONDOWN:
+			{
+				if ( !this->m_current.key_down_map[ VK_MBUTTON ] )
+				{
+					this->m_current.push_key_press( VK_MBUTTON );
+					this->m_current.key_down_map[ VK_MBUTTON ] = true;
+				}
+				return true;
+			}
+
+			case WM_MBUTTONUP:
+			{
+				this->m_current.push_key_release( VK_MBUTTON );
+				this->m_current.key_down_map[ VK_MBUTTON ] = false;
+				return true;
+			}
+
+			case WM_XBUTTONDOWN:
+			{
+				const auto vk = ( GET_XBUTTON_WPARAM( wparam ) == XBUTTON1 ) ? VK_XBUTTON1 : VK_XBUTTON2;
+				if ( !this->m_current.key_down_map[ vk ] )
+				{
+					this->m_current.push_key_press( vk );
+					this->m_current.key_down_map[ vk ] = true;
+				}
+				return true;
+			}
+
+			case WM_XBUTTONUP:
+			{
+				const auto vk = ( GET_XBUTTON_WPARAM( wparam ) == XBUTTON1 ) ? VK_XBUTTON1 : VK_XBUTTON2;
+				this->m_current.push_key_release( vk );
+				this->m_current.key_down_map[ vk ] = false;
+				return true;
+			}
+
 			case WM_MOUSEWHEEL:
 			{
 				const auto delta = GET_WHEEL_DELTA_WPARAM( wparam ) / static_cast< float >( WHEEL_DELTA );
@@ -530,7 +566,7 @@ namespace
 				const auto padding_top = 6.0f;
 				const auto item_height = 20.0f;
 
-				for ( int i = 0; i < static_cast< int >( this->m_items.size( ) ); ++i )
+				for ( auto i = 0; i < static_cast< int >( this->m_items.size( ) ); ++i )
 				{
 					const auto item_y = dropdown.y + padding_top + i * item_height;
 					const auto item_rect = zui::rect{ dropdown.x + 6.0f, item_y, dropdown.w - 12.0f, item_height };
@@ -592,7 +628,7 @@ namespace
 			const auto item_height = style.combo_item_height;
 			const auto item_padding{ 6.0f };
 
-			for ( int i = 0; i < static_cast< int >( this->m_items.size( ) ); ++i )
+			for ( auto i = 0; i < static_cast< int >( this->m_items.size( ) ); ++i )
 			{
 				const auto item_y = dropdown.y + padding_top + i * item_height;
 				const auto item_rect = zui::rect{ dropdown.x + item_padding, item_y, dropdown.w - item_padding * 2.0f, item_height };
@@ -722,7 +758,7 @@ namespace
 		multicombo_overlay( widget_id id, const zui::rect& anchor, float width, const char* const* items, int items_count, bool* selected_items, std::function<void( )> on_change = nullptr ) : overlay{ id, anchor }, m_width{ width }, m_items_count{ items_count }, m_selected_items{ selected_items }, m_on_change{ std::move( on_change ) }
 		{
 			this->m_items.reserve( items_count );
-			for ( int i = 0; i < items_count; ++i )
+			for ( auto i = 0; i < items_count; ++i )
 			{
 				this->m_items.emplace_back( items[ i ] );
 			}
@@ -733,7 +769,7 @@ namespace
 
 			if ( selected_items )
 			{
-				for ( int i = 0; i < items_count; ++i )
+				for ( auto i = 0; i < items_count; ++i )
 				{
 					this->m_check_anims[ i ] = selected_items[ i ] ? 1.0f : 0.0f;
 				}
@@ -767,7 +803,7 @@ namespace
 				const auto padding_top = 6.0f;
 				const auto item_height = 20.0f;
 
-				for ( int i = 0; i < this->m_items_count; ++i )
+				for ( auto i = 0; i < this->m_items_count; ++i )
 				{
 					const auto item_y = dropdown.y + padding_top + i * item_height;
 					const auto item_rect = zui::rect{ dropdown.x + 6.0f, item_y, dropdown.w - 12.0f, item_height };
@@ -829,7 +865,7 @@ namespace
 			const auto item_height = style.combo_item_height;
 			const auto item_padding{ 6.0f };
 
-			for ( int i = 0; i < this->m_items_count; ++i )
+			for ( auto i = 0; i < this->m_items_count; ++i )
 			{
 				const auto item_y = dropdown.y + padding_top + i * item_height;
 				const auto item_rect = zui::rect{ dropdown.x + item_padding, item_y, dropdown.w - item_padding * 2.0f, item_height };
@@ -933,7 +969,7 @@ namespace
 			{
 				this->m_cached_display_text.clear( );
 
-				for ( int i = 0; i < this->m_items_count; ++i )
+				for ( auto i = 0; i < this->m_items_count; ++i )
 				{
 					if ( this->m_selected_items && this->m_selected_items[ i ] )
 					{
@@ -1850,6 +1886,9 @@ namespace zui {
 		bool mouse_hovered( const rect& r ) { return ctx( ).input( ).hovered( r ); }
 		window_state* get_current_window( ) { return ctx( ).current_window( ); }
 		bool overlay_blocking_input( ) { return ctx( ).overlay_blocking_input( ); }
+		widget_id generate_id( std::string_view label ) { return ctx( ).generate_id( label ); }
+		bool is_overlay_open( widget_id id ) { return ctx( ).overlays( ).is_open( id ); }
+		bool overlay_exists( widget_id id ) { return ctx( ).overlays( ).find( id ) != nullptr; }
 
 	} // namespace detail
 
@@ -2122,7 +2161,7 @@ namespace zui {
 		auto& s = ctx( ).get_style( );
 		auto& stack = ctx( ).m_style_var_stack;
 
-		for ( int i = 0; i < count && !stack.empty( ); ++i )
+		for ( auto i = 0; i < count && !stack.empty( ); ++i )
 		{
 			const auto& backup{ stack.back( ) };
 			float* ptr{ nullptr };
@@ -2216,7 +2255,7 @@ namespace zui {
 		auto& s = ctx( ).get_style( );
 		auto& stack = ctx( ).m_style_color_stack;
 
-		for ( int i = 0; i < count && !stack.empty( ); ++i )
+		for ( auto i = 0; i < count && !stack.empty( ); ++i )
 		{
 			const auto& backup{ stack.back( ) };
 			zdraw::rgba* ptr{ nullptr };
@@ -3445,7 +3484,7 @@ namespace zui {
 				std::vector<std::string> item_strings{};
 				item_strings.reserve( items_count );
 
-				for ( int i = 0; i < items_count; ++i )
+				for ( auto i = 0; i < items_count; ++i )
 				{
 					item_strings.emplace_back( items[ i ] );
 				}
@@ -3572,7 +3611,7 @@ namespace zui {
 		}
 		else
 		{
-			for ( int i = 0; i < items_count; ++i )
+			for ( auto i = 0; i < items_count; ++i )
 			{
 				if ( selected_items[ i ] )
 				{
@@ -4379,7 +4418,7 @@ namespace zui {
 		const auto cy = abs.y + dot_area_h * 0.5f;
 
 		auto& dl = active_draw_list( );
-		for ( int i = 0; i < 3; ++i )
+		for ( auto i = 0; i < 3; ++i )
 		{
 			const auto cx = start_x + dot_r + static_cast< float >( i ) * ( dot_r * 2.0f + dot_spacing );
 			dl.add_circle_filled( cx, cy, dot_r, dot_col, 8 );

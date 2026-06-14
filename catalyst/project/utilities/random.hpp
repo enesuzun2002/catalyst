@@ -140,14 +140,14 @@ namespace random {
 
 			std::uint8_t bits[ 8 ]{ };
 
-			for ( int i = 0; i < 8; ++i )
+			for ( auto i = 0; i < 8; ++i )
 			{
 				bits[ 7 - i ] = static_cast< std::uint8_t >( bit_count >> ( i * 8 ) );
 			}
 
 			this->update( bits, 8 );
 
-			for ( int i = 0; i < 5; ++i )
+			for ( auto i = 0; i < 5; ++i )
 			{
 				this->m_digest[ i * 4 + 0 ] = static_cast< std::uint8_t >( this->m_state[ i ] >> 24 );
 				this->m_digest[ i * 4 + 1 ] = static_cast< std::uint8_t >( this->m_state[ i ] >> 16 );
@@ -173,7 +173,7 @@ namespace random {
 		{
 			std::uint32_t w[ 80 ]{ };
 
-			for ( int i = 0; i < 16; ++i )
+			for ( auto i = 0; i < 16; ++i )
 			{
 				w[ i ] = static_cast< std::uint32_t >( block[ i * 4 ] ) << 24 | static_cast< std::uint32_t >( block[ i * 4 + 1 ] ) << 16 | static_cast< std::uint32_t >( block[ i * 4 + 2 ] ) << 8 | static_cast< std::uint32_t >( block[ i * 4 + 3 ] );
 			}
@@ -189,7 +189,7 @@ namespace random {
 			auto d = this->m_state[ 3 ];
 			auto e = this->m_state[ 4 ];
 
-			for ( int i = 0; i < 80; ++i )
+			for ( auto i = 0; i < 80; ++i )
 			{
 				std::uint32_t f, k;
 

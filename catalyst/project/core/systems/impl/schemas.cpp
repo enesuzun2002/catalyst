@@ -2,7 +2,7 @@
 
 namespace systems {
 
-	std::int32_t schemas::lookup( const char* class_name, std::uint32_t field_hash )
+	int schemas::lookup( const char* class_name, std::uint32_t field_hash )
 	{
 		const auto class_info = this->find_class_binding( class_name );
 		if ( !class_info )
@@ -33,7 +33,7 @@ namespace systems {
 
 			if ( fnv1a::runtime_hash( name ) == field_hash )
 			{
-				return g::memory.read< std::int32_t >( field_addr + 0x10 );
+				return g::memory.read< int >( field_addr + 0x10 );
 			}
 		}
 
@@ -50,7 +50,7 @@ namespace systems {
 				return 0;
 			}
 
-			const auto scope_count = g::memory.read<std::int32_t>( schema_system + 0x190 );
+			const auto scope_count = g::memory.read<int>( schema_system + 0x190 );
 			const auto scope_data = g::memory.read<std::uintptr_t>( schema_system + 0x198 );
 
 			if ( !scope_count || scope_count > 64 || !scope_data )
@@ -58,7 +58,7 @@ namespace systems {
 				return 0;
 			}
 
-			for ( std::int32_t i = 0; i < scope_count; ++i )
+			for ( auto i = 0; i < scope_count; ++i )
 			{
 				const auto scope_ptr = g::memory.read<std::uintptr_t>( scope_data + i * sizeof( std::uintptr_t ) );
 				if ( !scope_ptr )
@@ -127,7 +127,7 @@ namespace systems {
 
 	std::uint32_t schemas::murmur2( const char* str )
 	{
-		std::uint32_t len{ 0 };
+		auto len{ 0u };
 		const auto data = reinterpret_cast< const std::uint8_t* >( str );
 
 		while ( data[ len ] )

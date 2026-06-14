@@ -8,6 +8,13 @@ int main( )
 	timeBeginPeriod( 1 );
 
 	{
+		settings::g_combat.register_config( "combat" );
+		settings::g_esp.register_config( "esp" );
+		settings::g_misc.register_config( "misc" );
+		config::initialize( );
+	}
+
+	{
 		if ( !g::console.initialize( " :> (id recommend you cap your ingame fps for better performance)" ) )
 		{
 			return 1;
@@ -31,6 +38,11 @@ int main( )
 		}
 
 		if ( !g::offsets.initialize( ) )
+		{
+			return 1;
+		}
+
+		if ( !systems::g_icons.initialize( ) )
 		{
 			return 1;
 		}

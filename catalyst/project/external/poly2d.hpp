@@ -158,7 +158,7 @@ namespace poly2d {
 			std::vector<point> circle;
 			circle.reserve( total );
 
-			for ( int i = 0; i < total; ++i )
+			for ( auto i = 0; i < total; ++i )
 			{
 				const auto angle = detail::k_two_pi * static_cast< float >( i ) / static_cast< float >( total );
 				circle.push_back( { a.x + std::cos( angle ) * radius, a.y + std::sin( angle ) * radius } );

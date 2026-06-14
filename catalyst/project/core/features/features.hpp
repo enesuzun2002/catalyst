@@ -29,9 +29,10 @@ namespace features {
 			[[nodiscard]] float get_fov( const math::vector3& view_angles, const math::vector3& eye_pos, const math::vector3& target_pos ) const;
 			[[nodiscard]] float get_fov_radius( const math::vector3& eye_pos, const math::vector3& view_angles, float fov_degrees ) const;
 
-			void draw_penetration_crosshair( zdraw::draw_list& draw_list, const math::vector3& eye_pos, const math::vector3& view_angles, const settings::combat::group_config& cfg );
+			void draw_penetration_crosshair( zdraw::draw_list& draw_list, const math::vector3& eye_pos, const math::vector3& view_angles );
 			void draw_fov( zdraw::draw_list& draw_list, const math::vector3& eye_pos, const math::vector3& view_angles, const settings::combat::aimbot& cfg );
 			void aimbot( const math::vector3& eye_pos, const math::vector3& view_angles, const target& tgt, const settings::combat::aimbot& cfg );
+			void zeusbot( const math::vector3& eye_pos, const math::vector3& view_angles, const std::vector<systems::collector::player>& players );
 
 			struct trigger_result
 			{
@@ -46,23 +47,18 @@ namespace features {
 			[[nodiscard]] trigger_result trace_crosshair( const math::vector3& eye_pos, const math::vector3& view_angles, const std::vector<systems::collector::player>& players, const settings::combat::triggerbot& cfg ) const;
 			void triggerbot( const math::vector3& eye_pos, const math::vector3& view_angles, const std::vector<systems::collector::player>& players, const settings::combat::triggerbot& cfg );
 
-			void apply_autostop( );
-			void release_autostop( );
-
 			animation::spring m_fov_alpha{};
 			random::valve_rng m_rng{};
-			bool m_rng_seeded{ false };
+			bool m_rng_seeded{};
 
 			math::vector2 m_aim_error{};
 
-			float m_trigger_delay_end{ 0.0f };
-			bool m_trigger_waiting{ false };
-			bool m_trigger_held{ false };
-			float m_trigger_release_time{ 0.0f };
+			float m_trigger_delay_end{};
+			bool m_trigger_waiting{};
+			bool m_trigger_held{};
+			float m_trigger_release_time{};
 
-			bool m_autostop_active{ false };
-			std::chrono::steady_clock::time_point m_autostop_start{};
-			std::vector<std::uint16_t> m_autostop_keys{};
+			float m_zeus_fire_time{};
 		};
 
 		class shared
@@ -76,6 +72,7 @@ namespace features {
 				std::uint16_t item_def_idx;
 				int num_bullets;
 				float inaccuracy;
+				float base_inaccuracy;
 				float spread;
 				float recoil_index;
 				bool is_reloading;
@@ -127,12 +124,11 @@ namespace features {
 			[[nodiscard]] float calculate_hitchance( const math::vector3& eye_pos, const math::vector3& aim_angle, const systems::collector::player& target, const systems::bones::data& bones ) const;
 			[[nodiscard]] std::uint32_t get_spread_seed( const math::vector3& angles, int tick ) const;
 			[[nodiscard]] math::vector2 calculate_spread( int seed, float accuracy, float spread, float recoil_index, int item_def_idx, int num_bullets ) const;
-			[[nodiscard]] math::vector3 extrapolate_stop( const math::vector3& pos ) const;
-			[[nodiscard]] bool is_sniper_accurate( ) const;
 			[[nodiscard]] float get_prediction_time( ) const;
 			[[nodiscard]] float get_spread( std::uintptr_t weapon_vdata ) const;
 			[[nodiscard]] float get_inaccuracy( std::uintptr_t pawn, std::uintptr_t weapon, std::uintptr_t weapon_vdata, const math::vector3& eye_angles ) const;
 			[[nodiscard]] bool ray_hits_capsule( const math::vector3& ray_origin, const math::vector3& ray_dir, const math::vector3& capsule_start, const math::vector3& capsule_end, float radius ) const;
+			[[nodiscard]] bool is_weapon_max_accuracy( ) const;
 
 			context m_ctx{};
 			penetration m_pen{};
@@ -154,10 +150,10 @@ namespace features {
 		private:
 			struct draw_offsets
 			{
-				float left{ 0.0f };
-				float top{ 0.0f };
-				float bottom{ 0.0f };
-				float right{ 0.0f };
+				float left{};
+				float top{};
+				float bottom{};
+				float right{};
 			};
 
 			void add_box( zdraw::draw_list& draw_list, const systems::bounds::data& bounds, const settings::esp::player::box& cfg, bool is_visible );
@@ -169,14 +165,12 @@ namespace features {
 			void add_weapon( zdraw::draw_list& draw_list, const systems::bounds::data& bounds, const systems::collector::player& player, const settings::esp::player::weapon& cfg, draw_offsets& offsets );
 			void add_flags( zdraw::draw_list& draw_list, const systems::bounds::data& bounds, const systems::collector::player& player, const settings::esp::player::info_flags& cfg, draw_offsets& offsets );
 
-			[[nodiscard]] static std::string get_weapon_icon( const std::string& weapon_name );
-
 			struct animation_data
 			{
 				animation::spring health{};
 				animation::spring ammo{};
-				bool initialized{ false };
-				float last_damage_time{ 0.0f };
+				bool initialized{};
+				float last_damage_time{};
 				int last_health{ 100 };
 			};
 
@@ -237,7 +231,7 @@ namespace features {
 				math::vector3 end_pos{};
 				float duration{};
 				int end_tick{ -1 };
-				bool valid{ false };
+				bool valid{};
 			};
 
 			struct in_flight_grenade
@@ -248,9 +242,9 @@ namespace features {
 				std::chrono::steady_clock::time_point throw_time{};
 				std::chrono::steady_clock::time_point detonate_time{};
 				std::chrono::steady_clock::time_point last_seen{};
-				bool detonated{ false };
-				bool effect_started{ false };
-				bool corrected{ false };
+				bool detonated{};
+				bool effect_started{};
+				bool corrected{};
 			};
 
 			[[nodiscard]] bool can_predict( ) const;

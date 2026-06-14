@@ -12,6 +12,8 @@
 #include "external/fonts/inter.hpp"
 #include "external/shaders/shaders.hpp"
 
+#include "../nanosvg/include.hpp"
+
 namespace zdraw {
 
 	namespace detail {
@@ -2042,6 +2044,76 @@ namespace zdraw {
 		file.read( reinterpret_cast< char* >( buffer.data( ) ), size );
 
 		return load_texture_from_memory( buffer, out_width, out_height );
+	}
+
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> load_svg( std::span<const std::byte> data, float scale, int* out_width, int* out_height )
+	{
+		std::string str( reinterpret_cast< const char* >( data.data( ) ), data.size( ) );
+
+		auto image = nsvgParse( str.data( ), "px", 96.0f );
+		if ( !image )
+		{
+			return nullptr;
+		}
+
+		const auto width = static_cast< int >( image->width * scale );
+		const auto height = static_cast< int >( image->height * scale );
+
+		if ( width <= 0 || height <= 0 )
+		{
+			nsvgDelete( image );
+			return nullptr;
+		}
+
+		auto rast = nsvgCreateRasterizer( );
+		if ( !rast )
+		{
+			nsvgDelete( image );
+			return nullptr;
+		}
+
+		std::vector<unsigned char> pixels( static_cast< std::size_t >( width ) * height * 4 );
+		nsvgRasterize( rast, image, 0, 0, scale, pixels.data( ), width, height, width * 4 );
+		nsvgDeleteRasterizer( rast );
+		nsvgDelete( image );
+
+		if ( out_width ) { *out_width = width; }
+		if ( out_height ) { *out_height = height; }
+
+		D3D11_TEXTURE2D_DESC tex_desc{};
+		tex_desc.Width = static_cast< UINT >( width );
+		tex_desc.Height = static_cast< UINT >( height );
+		tex_desc.MipLevels = 1;
+		tex_desc.ArraySize = 1;
+		tex_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		tex_desc.SampleDesc.Count = 1;
+		tex_desc.Usage = D3D11_USAGE_IMMUTABLE;
+		tex_desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+		D3D11_SUBRESOURCE_DATA init_data{};
+		init_data.pSysMem = pixels.data( );
+		init_data.SysMemPitch = static_cast< UINT >( width * 4 );
+
+		Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;
+		auto hr = detail::g_render.m_device->CreateTexture2D( &tex_desc, &init_data, &texture );
+		if ( FAILED( hr ) )
+		{
+			return nullptr;
+		}
+
+		D3D11_SHADER_RESOURCE_VIEW_DESC srv_desc{};
+		srv_desc.Format = tex_desc.Format;
+		srv_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		srv_desc.Texture2D.MipLevels = 1;
+
+		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
+		hr = detail::g_render.m_device->CreateShaderResourceView( texture.Get( ), &srv_desc, &srv );
+		if ( FAILED( hr ) )
+		{
+			return nullptr;
+		}
+
+		return srv;
 	}
 
 	font* add_font_from_memory( std::span<const std::byte> font_data, float size_pixels, int atlas_width, int atlas_height )

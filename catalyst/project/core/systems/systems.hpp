@@ -14,13 +14,13 @@ namespace systems {
 	class schemas
 	{
 	public:
-		[[nodiscard]] std::int32_t lookup( const char* class_name, std::uint32_t field_hash );
+		[[nodiscard]] int lookup( const char* class_name, std::uint32_t field_hash );
 
 	private:
 		struct cached_entry
 		{
 			std::uint32_t field_hash;
-			std::int32_t offset;
+			int offset;
 		};
 
 		[[nodiscard]] std::uintptr_t find_class_binding( const char* class_name );
@@ -59,7 +59,7 @@ namespace systems {
 	private:
 
 		[[nodiscard]] std::uintptr_t get_entity_list( ) const;
-		[[nodiscard]] std::uintptr_t get_by_index( std::uintptr_t entity_list, std::int32_t index ) const;
+		[[nodiscard]] std::uintptr_t get_by_index( std::uintptr_t entity_list, int index ) const;
 		[[nodiscard]] std::uint32_t get_schema_hash( std::uintptr_t entity ) const;
 		[[nodiscard]] type classify( std::uint32_t schema_hash ) const;
 
@@ -74,7 +74,7 @@ namespace systems {
 
 		[[nodiscard]] std::uintptr_t controller( ) const { return this->m_controller.load( ); }
 		[[nodiscard]] std::uintptr_t pawn( ) const { return this->m_pawn.load( ); }
-		[[nodiscard]] std::int32_t team( ) const { return this->m_team.load( ); }
+		[[nodiscard]] int team( ) const { return this->m_team.load( ); }
 		[[nodiscard]] bool valid( ) const { return this->m_pawn.load( ) != 0 || this->m_observer_pawn.load( ) != 0; }
 		[[nodiscard]] bool alive( ) const { return this->m_alive.load( ); }
 		[[nodiscard]] std::uintptr_t view_pawn( ) const { return this->m_alive.load( ) ? this->m_pawn.load( ) : this->m_observer_pawn.load( ); }
@@ -83,7 +83,7 @@ namespace systems {
 		[[nodiscard]] std::uintptr_t weapon_vdata( ) const { return this->m_weapon_vdata.load( ); }
 		[[nodiscard]] std::uint32_t weapon_type( ) const { return this->m_weapon_type.load( ); }
 
-		[[nodiscard]] bool is_enemy( std::int32_t other_team ) const
+		[[nodiscard]] bool is_enemy( int other_team ) const
 		{
 			if ( !this->m_team_mode.load( ) )
 			{
@@ -99,8 +99,8 @@ namespace systems {
 		std::atomic<std::uintptr_t> m_controller{};
 		std::atomic<std::uintptr_t> m_pawn{};
 		std::atomic<std::uintptr_t> m_observer_pawn{};
-		std::atomic<std::int32_t> m_team{};
-		std::atomic<std::int32_t> m_view_team{};
+		std::atomic<int> m_team{};
+		std::atomic<int> m_view_team{};
 		std::atomic<bool> m_alive{};
 		std::atomic<bool> m_team_mode{ true };
 
@@ -127,7 +127,7 @@ namespace systems {
 		math::matrix4x4 m_matrix{};
 		math::vector3 m_origin{};
 		math::vector3 m_angles{};
-		float m_fov{ 0.0f };
+		float m_fov{};
 	};
 
 	class bones
@@ -219,8 +219,8 @@ namespace systems {
 			std::uintptr_t ptr{};
 			std::uintptr_t vdata{};
 			std::string name{};
-			std::int32_t ammo{};
-			std::int32_t max_ammo{};
+			int ammo{};
+			int max_ammo{};
 		};
 
 		struct player
@@ -232,11 +232,11 @@ namespace systems {
 			math::vector3 origin{};
 			std::string display_name{};
 			weapon_info weapon{};
-			std::int32_t health{};
-			std::int32_t team{};
-			std::int32_t money{};
-			std::int32_t ping{};
-			std::int32_t armor{};
+			int health{};
+			int team{};
+			int money{};
+			int ping{};
+			int armor{};
 			bool invulnerable{};
 			bool has_helmet{};
 			bool has_defuser{};
@@ -253,8 +253,8 @@ namespace systems {
 			std::uintptr_t game_scene_node{};
 			math::vector3 origin{};
 			item_subtype subtype{ item_subtype::unknown };
-			std::int32_t ammo{};
-			std::int32_t max_ammo{};
+			int ammo{};
+			int max_ammo{};
 		};
 
 		struct projectile
@@ -265,8 +265,8 @@ namespace systems {
 			math::vector3 velocity{};
 			projectile_subtype subtype{ projectile_subtype::unknown };
 			std::uint32_t thrower_handle{};
-			std::int32_t bounces{};
-			std::int32_t effect_tick_begin{};
+			int bounces{};
+			int effect_tick_begin{};
 			bool detonated{};
 			bool smoke_active{};
 			std::vector<math::vector3> fire_points{};
@@ -296,11 +296,14 @@ namespace systems {
 	class bvh
 	{
 	public:
+		enum class shape_kind : std::uint8_t { mesh, hull, other };
+
 		struct surface_info
 		{
 			float penetration{};
 			std::uint16_t surface_type{};
 			std::uint8_t global_index{ 255 };
+			shape_kind kind{ shape_kind::other };
 		};
 
 		struct global_surface_entry
@@ -331,7 +334,7 @@ namespace systems {
 			math::vector3 end_pos{};
 			math::vector3 normal{};
 			surface_info surface{};
-			std::int32_t triangle_index{ -1 };
+			int triangle_index{ -1 };
 		};
 
 		struct hit_entry
@@ -341,7 +344,7 @@ namespace systems {
 			math::vector3 position{};
 			math::vector3 normal{};
 			surface_info surface{};
-			std::int32_t triangle_index{ -1 };
+			int triangle_index{ -1 };
 			bool is_enter{ true };
 		};
 
@@ -362,8 +365,8 @@ namespace systems {
 		void parse( );
 		void clear( );
 
-		[[nodiscard]] trace_result trace_ray( const math::vector3& start, const math::vector3& end, std::int32_t exclude_tri = -1 ) const;
-		[[nodiscard]] trace_result trace_hull( const math::vector3& start, const math::vector3& end, const math::vector3& hull_mins, const math::vector3& hull_maxs, std::int32_t exclude_tri = -1 ) const;
+		[[nodiscard]] trace_result trace_ray( const math::vector3& start, const math::vector3& end, int exclude_tri = -1 ) const;
+		[[nodiscard]] trace_result trace_hull( const math::vector3& start, const math::vector3& end, const math::vector3& hull_mins, const math::vector3& hull_maxs, int exclude_tri = -1 ) const;
 		[[nodiscard]] std::vector<hit_entry> trace_ray_all( const math::vector3& start, const math::vector3& end ) const;
 		[[nodiscard]] std::vector<penetration_segment> build_segments( const std::vector<hit_entry>& hits, float ray_length ) const;
 
@@ -386,25 +389,64 @@ namespace systems {
 		struct bvh_node
 		{
 			aabb bounds{};
-			std::int32_t left{ -1 };
-			std::int32_t right{ -1 };
-			std::int32_t tri_start{};
-			std::int32_t tri_count{};
+			int left{ -1 };
+			int right{ -1 };
+			int tri_start{};
+			int tri_count{};
 		};
 
 		void rebuild_accel( );
-		std::int32_t build_recursive( std::int32_t start, std::int32_t end, std::int32_t depth );
+		int build_recursive( int start, int end, int depth );
 
 		std::vector<triangle> m_triangles{};
 		mutable std::shared_mutex m_mutex{};
 
 		std::vector<bvh_node> m_nodes{};
-		std::vector<std::int32_t> m_indices{};
+		std::vector<int> m_indices{};
 		std::vector<aabb> m_tri_bounds{};
 		std::vector<float> m_centroids{};
 
 		static constexpr auto k_max_leaf_tris{ 8 };
 		static constexpr auto k_max_depth{ 48 };
+	};
+
+	class icons
+	{
+	public:
+		struct icon
+		{
+			Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> texture{};
+			int width{};
+			int height{};
+		};
+
+		bool initialize( );
+		void shutdown( );
+
+		[[nodiscard]] const icon* get( const std::string& name, float scale = 1.0f );
+		[[nodiscard]] const icon* get( std::uint32_t schema_hash, float scale = 1.0f );
+
+	private:
+		bool load_vpk_directory( const std::string& path );
+		bool cache_svg_bytes( const std::string& vpk_path, const std::string& icon_name, std::uint32_t entry_offset, std::uint32_t entry_length );
+		std::vector<std::byte> decompile_vsvg( std::span<const std::byte> data ) const;
+
+		struct icon_key
+		{
+			std::string name;
+			std::uint32_t scale_bits;
+
+			bool operator==( const icon_key& o ) const noexcept { return this->scale_bits == o.scale_bits && this->name == o.name; }
+		};
+
+		struct icon_key_hash
+		{
+			std::size_t operator()( const icon_key& k ) const noexcept { return std::hash<std::string>{}( k.name ) ^ ( std::hash<std::uint32_t>{}( k.scale_bits ) << 1 ); }
+		};
+
+		std::unordered_map<icon_key, icon, icon_key_hash> m_icons{};
+		std::unordered_map<std::uint32_t, std::string> m_hash_to_name{};
+		std::unordered_map<std::string, std::vector<std::byte>> m_pending_svgs{};
 	};
 
 	inline convars g_convars{};
@@ -417,11 +459,12 @@ namespace systems {
 	inline hitboxes g_hitboxes{};
 	inline collector g_collector{};
 	inline bvh g_bvh{};
+	inline icons g_icons{};
 
 } // namespace systems
 
 #define SCHEMA( class_name, field_hash ) \
-	[]( ) -> std::int32_t { \
+	[]( ) -> int { \
 		static const auto val = systems::g_schemas.lookup( class_name, field_hash ); \
 		return val; \
 	}( )

@@ -8,7 +8,6 @@ public:
 		zdraw::font* mochi_12{};
 		zdraw::font* pretzel_12{};
 		zdraw::font* pixel7_10{};
-		zdraw::font* weapons_15{};
 	};
 
 	bool initialize( );
@@ -27,8 +26,10 @@ private:
 
 	HWND m_hwnd{};
 	HWND m_input_hwnd{};
+	HWND m_prev_foreground{};
 	ATOM m_atom{};
-	bool m_input_visible{ false };
+	bool m_input_visible{};
+	bool m_was_open{};
 
 	ID3D11Device* m_device{};
 	ID3D11DeviceContext* m_context{};

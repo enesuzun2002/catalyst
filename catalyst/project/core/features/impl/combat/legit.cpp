@@ -16,9 +16,9 @@ namespace features::combat {
 		}
 
 		const auto valid_weapon = cstypes::is_weapon_valid( ctx.weapon_type );
-		if ( valid_weapon && cfg.other.penetration_crosshair )
+		if ( valid_weapon && settings::g_combat.m_other.penetration_crosshair )
 		{
-			this->draw_penetration_crosshair( draw_list, eye_pos, view_angles, cfg );
+			this->draw_penetration_crosshair( draw_list, eye_pos, view_angles );
 		}
 
 		this->m_fov_alpha.set_target( valid_weapon && cfg.aimbot.draw_fov && cfg.aimbot.enabled ? 1.0f : 0.0f );
@@ -56,6 +56,18 @@ namespace features::combat {
 			return;
 		}
 
+		const auto eye_pos = systems::g_view.origin( );
+		const auto view_angles = systems::g_view.angles( );
+		const auto players = systems::g_collector.players( );
+
+		if ( ctx.weapon_type == cstypes::weapon_type::taser && !ctx.is_reloading && ctx.weapon_ready )
+		{
+			if ( settings::g_combat.m_other.m_zeusbot.enabled )
+			{
+				this->zeusbot( eye_pos, view_angles, players );
+			}
+		}
+
 		const auto valid_weapon = cstypes::is_weapon_valid( ctx.weapon_type );
 		const auto& cfg = settings::g_combat.get( ctx.weapon_type );
 
@@ -63,10 +75,6 @@ namespace features::combat {
 		{
 			return;
 		}
-
-		const auto eye_pos = systems::g_view.origin( );
-		const auto view_angles = systems::g_view.angles( );
-		const auto players = systems::g_collector.players( );
 
 		if ( !ctx.is_reloading && ctx.weapon_ready )
 		{
@@ -229,8 +237,10 @@ namespace features::combat {
 		return std::sqrtf( dx * dx + dy * dy );
 	}
 
-	void legit::draw_penetration_crosshair( zdraw::draw_list& draw_list, const math::vector3& eye_pos, const math::vector3& view_angles, const settings::combat::group_config& cfg )
+	void legit::draw_penetration_crosshair( zdraw::draw_list& draw_list, const math::vector3& eye_pos, const math::vector3& view_angles )
 	{
+		const auto& cfg = settings::g_combat.m_other;
+
 		math::vector3 forward{};
 		view_angles.to_directions( &forward, nullptr, nullptr );
 
@@ -263,7 +273,7 @@ namespace features::combat {
 
 		float sx[ 5 ]{}, sy[ 5 ]{};
 
-		for ( int i = 0; i < 4; ++i )
+		for ( auto i = 0; i < 4; ++i )
 		{
 			const auto proj = systems::g_view.project( corners[ i ] );
 			if ( !systems::g_view.projection_valid( proj ) )
@@ -284,10 +294,10 @@ namespace features::combat {
 		sx[ 4 ] = center_proj.x;
 		sy[ 4 ] = center_proj.y;
 
-		const auto& color = can_pen ? cfg.other.penetration_color_yes : cfg.other.penetration_color_no;
+		const auto& color = can_pen ? cfg.penetration_color_yes.value : cfg.penetration_color_no.value;
 		const auto edge = zdraw::rgba{ color.r, color.g, color.b, static_cast< std::uint8_t >( color.a / 4 ) };
 
-		for ( int i = 0; i < 4; ++i )
+		for ( auto i = 0; i < 4; ++i )
 		{
 			const auto j = ( i + 1 ) % 4;
 			draw_list.add_triangle_filled_multi_color( sx[ 4 ], sy[ 4 ], sx[ i ], sy[ i ], sx[ j ], sy[ j ], color, edge, edge );
@@ -309,7 +319,7 @@ namespace features::combat {
 		}
 
 		const auto [w, h] = zdraw::get_display_size( );
-		const auto color = zdraw::rgba{ cfg.fov_color.r, cfg.fov_color.g, cfg.fov_color.b, static_cast< std::uint8_t >( alpha * 125.0f ) };
+		const auto color = zdraw::rgba{ cfg.fov_color.value.r, cfg.fov_color.value.g, cfg.fov_color.value.b, static_cast< std::uint8_t >( alpha * 125.0f ) };
 
 		draw_list.add_circle( w * 0.5f, h * 0.5f, radius, color, 16 );
 	}
@@ -398,6 +408,139 @@ namespace features::combat {
 		{
 			g::input.inject_mouse( dx, dy, input::move );
 		}
+	}
+
+	void legit::zeusbot( const math::vector3& eye_pos, const math::vector3& view_angles, const std::vector<systems::collector::player>& players )
+	{
+		const auto& cfg = settings::g_combat.m_other.m_zeusbot;
+
+		if ( this->m_trigger_held )
+		{
+			return;
+		}
+
+		if ( !( GetAsyncKeyState( cfg.key ) & 0x8000 ) )
+		{
+			this->m_zeus_fire_time = 0.0f;
+			return;
+		}
+
+		const auto& ctx = g_shared.ctx( );
+		if ( !ctx.weapon_ready )
+		{
+			return;
+		}
+
+		if ( this->m_zeus_fire_time > 0.0f )
+		{
+			if ( ctx.current_time >= this->m_zeus_fire_time )
+			{
+				const auto hold_ms = this->m_rng.random_float( 50.0f, 120.0f );
+
+				g::input.inject_mouse( 0, 0, input::left_down );
+				this->m_trigger_held = true;
+				this->m_trigger_release_time = ctx.current_time + hold_ms * 0.001f;
+				this->m_zeus_fire_time = 0.0f;
+			}
+
+			return;
+		}
+
+		const auto range = g_shared.pen( ).get_weapon_data( ).range * 0.85f;
+		if ( range <= 0.0f )
+		{
+			return;
+		}
+
+		const systems::collector::player* best_player{};
+		math::vector3 best_aim{};
+		auto best_fov = cfg.max_fov.value;
+
+		for ( const auto& player : players )
+		{
+			if ( !systems::g_local.is_enemy( player.team ) )
+			{
+				continue;
+			}
+
+			if ( player.invulnerable || player.hitboxes.count <= 0 )
+			{
+				continue;
+			}
+
+			const auto bones = systems::g_bones.get( player.bone_cache );
+			if ( !bones.is_valid( ) )
+			{
+				continue;
+			}
+
+			for ( const auto& hb : player.hitboxes )
+			{
+				if ( hb.index < 0 || hb.bone < 0 )
+				{
+					continue;
+				}
+
+				if ( hb.bone >= cstypes::bone_ids::left_hip )
+				{
+					continue;
+				}
+
+				const auto bone_pos = bones.get_position( hb.bone );
+				const auto bone_rot = bones.get_rotation( hb.bone );
+				const auto center = bone_pos + bone_rot.rotate_vector( ( hb.mins + hb.maxs ) * 0.5f );
+
+				if ( ( center - eye_pos ).length( ) > range )
+				{
+					continue;
+				}
+
+				const auto fov = math::helpers::calculate_fov( view_angles, eye_pos, center );
+				if ( fov > best_fov )
+				{
+					continue;
+				}
+
+				const auto trace = systems::g_bvh.trace_ray( eye_pos, center );
+				if ( trace.hit && trace.fraction < 0.97f )
+				{
+					continue;
+				}
+
+				best_player = &player;
+				best_aim = center;
+				best_fov = fov;
+			}
+		}
+
+		if ( !best_player )
+		{
+			return;
+		}
+
+		const auto desired = math::helpers::calculate_angle( eye_pos, best_aim );
+		const auto delta_pitch = desired.x - view_angles.x;
+		const auto delta_yaw = math::helpers::normalize_yaw( desired.y - view_angles.y );
+
+		constexpr auto m_yaw{ 0.022f };
+		const auto sensitivity = systems::g_convars.get<float>( CONVAR( "sensitivity"_hash ) );
+		const auto fov_adjust = g::memory.read<float>( systems::g_local.pawn( ) + SCHEMA( "C_BasePlayerPawn", "m_flFOVSensitivityAdjust"_hash ) );
+		const auto deg_per_pixel = sensitivity * m_yaw * fov_adjust;
+
+		if ( deg_per_pixel <= 0.0f )
+		{
+			return;
+		}
+
+		const auto dx = static_cast< int >( -delta_yaw / deg_per_pixel );
+		const auto dy = static_cast< int >( delta_pitch / deg_per_pixel );
+
+		if ( dx != 0 || dy != 0 )
+		{
+			g::input.inject_mouse( dx, dy, input::move );
+		}
+
+		this->m_zeus_fire_time = ctx.current_time + 0.050f;
 	}
 
 	legit::trigger_result legit::trace_crosshair( const math::vector3& eye_pos, const math::vector3& view_angles, const std::vector<systems::collector::player>& players, const settings::combat::triggerbot& cfg ) const
@@ -509,8 +652,6 @@ namespace features::combat {
 			return;
 		}
 
-		this->release_autostop( );
-
 		if ( !( GetAsyncKeyState( cfg.key ) & 0x8000 ) )
 		{
 			this->m_trigger_waiting = false;
@@ -524,31 +665,7 @@ namespace features::combat {
 			return;
 		}
 
-		const auto pawn = systems::g_local.pawn( );
-		const auto velocity = pawn ? g::memory.read<math::vector3>( pawn + SCHEMA( "C_BaseEntity", "m_vecAbsVelocity"_hash ) ) : math::vector3{};
-		const auto speed = velocity.length_2d( );
-		const auto flags = pawn ? g::memory.read<std::uint32_t>( pawn + SCHEMA( "C_BaseEntity", "m_fFlags"_hash ) ) : 0u;
-		const auto on_ground = ( flags & 1 ) != 0;
-		const auto is_moving = speed > 5.0f;
-
-		auto trace_pos = eye_pos;
-		auto found_at_extrapolated{ false };
-
-		if ( cfg.autostop && cfg.early_autostop && on_ground && is_moving )
-		{
-			constexpr auto lookahead_ticks{ 4 };
-			const auto lookahead_pos = eye_pos + math::vector3{ velocity.x * cstypes::tick_interval * lookahead_ticks, velocity.y * cstypes::tick_interval * lookahead_ticks, 0.0f };
-
-			trace_pos = g_shared.extrapolate_stop( lookahead_pos );
-
-			const auto extrap_result = this->trace_crosshair( trace_pos, view_angles, players, cfg );
-			if ( extrap_result.player )
-			{
-				found_at_extrapolated = true;
-			}
-		}
-
-		const auto result = found_at_extrapolated ? this->trace_crosshair( trace_pos, view_angles, players, cfg ) : this->trace_crosshair( eye_pos, view_angles, players, cfg );
+		const auto result = this->trace_crosshair( eye_pos, view_angles, players, cfg );
 		if ( !result.player )
 		{
 			this->m_trigger_waiting = false;
@@ -561,22 +678,7 @@ namespace features::combat {
 			return;
 		}
 
-		if ( cfg.autostop && on_ground && is_moving )
-		{
-			this->apply_autostop( );
-
-			if ( speed > 30.0f )
-			{
-				return;
-			}
-		}
-
-		if ( !g_shared.is_sniper_accurate( ) )
-		{
-			return;
-		}
-
-		if ( cfg.hitchance > 0.0f )
+		if ( cfg.hitchance > 0.0f && !g_shared.is_weapon_max_accuracy( ) )
 		{
 			const auto required = cfg.hitchance / 100.0f;
 			const auto hc = g_shared.calculate_hitchance( eye_pos, view_angles, *result.player, result.bones );
@@ -609,95 +711,6 @@ namespace features::combat {
 		g::input.inject_mouse( 0, 0, input::left_down );
 		this->m_trigger_held = true;
 		this->m_trigger_release_time = now + hold_ms * 0.001f;
-	}
-
-	void legit::apply_autostop( )
-	{
-		const auto pawn = systems::g_local.pawn( );
-		if ( !pawn )
-		{
-			return;
-		}
-
-		const auto flags = g::memory.read<std::uint32_t>( pawn + SCHEMA( "C_BaseEntity", "m_fFlags"_hash ) );
-		if ( !( flags & ( 1 << 0 ) ) )
-		{
-			return;
-		}
-
-		const auto velocity = g::memory.read<math::vector3>( pawn + SCHEMA( "C_BaseEntity", "m_vecAbsVelocity"_hash ) );
-		if ( velocity.length_2d( ) <= 15.0f )
-		{
-			return;
-		}
-
-		if ( this->m_autostop_active )
-		{
-			return;
-		}
-
-		const auto forward_pressed = ( GetAsyncKeyState( 'W' ) & 0x8000 ) != 0;
-		const auto back_pressed = ( GetAsyncKeyState( 'S' ) & 0x8000 ) != 0;
-		const auto left_pressed = ( GetAsyncKeyState( 'A' ) & 0x8000 ) != 0;
-		const auto right_pressed = ( GetAsyncKeyState( 'D' ) & 0x8000 ) != 0;
-
-		this->m_autostop_keys.clear( );
-
-		if ( forward_pressed && !back_pressed )
-		{
-			this->m_autostop_keys.push_back( 'S' );
-		}
-		else if ( back_pressed && !forward_pressed )
-		{
-			this->m_autostop_keys.push_back( 'W' );
-		}
-
-		if ( left_pressed && !right_pressed )
-		{
-			this->m_autostop_keys.push_back( 'D' );
-		}
-		else if ( right_pressed && !left_pressed )
-		{
-			this->m_autostop_keys.push_back( 'A' );
-		}
-
-		if ( this->m_autostop_keys.empty( ) )
-		{
-			return;
-		}
-
-		for ( const auto key : this->m_autostop_keys )
-		{
-			g::input.inject_keyboard( key, true );
-		}
-
-		this->m_autostop_active = true;
-		this->m_autostop_start = std::chrono::steady_clock::now( );
-	}
-
-	void legit::release_autostop( )
-	{
-		if ( !this->m_autostop_active )
-		{
-			return;
-		}
-
-		const auto pawn = systems::g_local.pawn( );
-		const auto velocity = pawn ? g::memory.read<math::vector3>( pawn + SCHEMA( "C_BaseEntity", "m_vecAbsVelocity"_hash ) ) : math::vector3{};
-		const auto elapsed = std::chrono::duration<float>( std::chrono::steady_clock::now( ) - this->m_autostop_start ).count( );
-
-		if ( velocity.length_2d( ) > 15.0f && elapsed < 0.15f )
-		{
-			return;
-		}
-
-		for ( const auto key : this->m_autostop_keys )
-		{
-			g::input.inject_keyboard( key, false );
-		}
-
-		this->m_autostop_keys.clear( );
-		this->m_autostop_active = false;
 	}
 
 } // namespace features::combat

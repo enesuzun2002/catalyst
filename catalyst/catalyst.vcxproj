@@ -71,6 +71,9 @@
     <ClCompile Include="project\core\systems\impl\bvh.cpp" />
     <ClCompile Include="project\core\systems\impl\hitboxes.cpp" />
     <ClCompile Include="project\entry.cpp" />
+    <ClCompile Include="project\external\lz4\lz4.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="project\external\zdraw\zdraw.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
@@ -95,11 +98,17 @@
     <ClCompile Include="project\core\systems\impl\local.cpp" />
     <ClCompile Include="project\core\systems\impl\view.cpp" />
     <ClCompile Include="project\core\systems\impl\collector.cpp" />
+    <ClCompile Include="project\core\systems\impl\icons.cpp" />
     <ClCompile Include="project\utilities\timing\timing.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="project\core\features\features.hpp" />
     <ClInclude Include="project\core\menu\menu.hpp" />
+    <ClInclude Include="project\external\config.hpp" />
+    <ClInclude Include="project\external\lz4\lz4.h" />
+    <ClInclude Include="project\external\nanosvg\include.hpp" />
+    <ClInclude Include="project\external\nanosvg\x\nanosvg.h" />
+    <ClInclude Include="project\external\nanosvg\x\nanosvgrast.h" />
     <ClInclude Include="project\external\poly2d.hpp" />
     <ClInclude Include="project\external\zdraw\external\external\fonts\inter.hpp" />
     <ClInclude Include="project\external\zdraw\external\external\freetype\freetype\config\ftconfig.h" />
@@ -222,7 +231,6 @@
     <ClInclude Include="project\resources\fonts\mochi.hpp" />
     <ClInclude Include="project\resources\fonts\pixel7.hpp" />
     <ClInclude Include="project\resources\fonts\pretzel.hpp" />
-    <ClInclude Include="project\resources\fonts\weapons.hpp" />
     <ClInclude Include="project\stdafx.hpp" />
     <ClInclude Include="project\utilities\animation\animation.hpp" />
     <ClInclude Include="project\utilities\console\console.hpp" />
@@ -232,7 +240,7 @@
     <ClInclude Include="project\utilities\modules\modules.hpp" />
     <ClInclude Include="project\utilities\offsets\offsets.hpp" />
     <ClInclude Include="project\utilities\math\math.hpp" />
-    <ClInclude Include="project\utilities\fnv1a.hpp" />
+    <ClInclude Include="project\external\fnv1a.hpp" />
     <ClInclude Include="project\core\settings.hpp" />
     <ClInclude Include="project\core\render\render.hpp" />
     <ClInclude Include="project\core\threads\threads.hpp" />

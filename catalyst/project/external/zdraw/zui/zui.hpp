@@ -61,6 +61,9 @@ namespace zui {
 		bool mouse_hovered( const rect& r );
 		window_state* get_current_window( );
 		bool overlay_blocking_input( );
+		widget_id generate_id( std::string_view label );
+		bool is_overlay_open( widget_id id );
+		bool overlay_exists( widget_id id );
 
 	} // namespace detail
 
@@ -287,5 +290,28 @@ namespace zui {
 
 	bool begin_popup( std::string_view label, float width = 200.0f );
 	void end_popup( );
+
+	template<typename E> requires std::is_enum_v<E>
+	bool combo( std::string_view label, E& value, const char* const items[ ], int items_count, float width = 0.0f )
+	{
+		static std::unordered_map<widget_id, int> enum_storage{};
+
+		const auto id = detail::generate_id( label );
+		auto& stored = enum_storage[ id ];
+
+		if ( !detail::overlay_exists( id ) )
+		{
+			stored = static_cast< int >( value );
+		}
+
+		if ( combo( label, stored, items, items_count, width ) )
+		{
+			value = static_cast< E >( stored );
+			return true;
+		}
+
+		value = static_cast< E >( stored );
+		return false;
+	}
 
 } // namespace zui

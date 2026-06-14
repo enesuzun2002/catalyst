@@ -111,9 +111,10 @@ void render::run( )
 
 void render::update_input_window( )
 {
+	const auto open = g::menu.is_open( );
 	const auto style = ::GetWindowLongW( this->m_hwnd, GWL_EXSTYLE );
 
-	if ( g::menu.is_open( ) )
+	if ( open )
 	{
 		::SetWindowLongW( this->m_hwnd, GWL_EXSTYLE, style & ~WS_EX_TRANSPARENT );
 	}
@@ -121,6 +122,48 @@ void render::update_input_window( )
 	{
 		::SetWindowLongW( this->m_hwnd, GWL_EXSTYLE, style | WS_EX_TRANSPARENT );
 	}
+
+	if ( open && !this->m_was_open )
+	{
+		this->m_prev_foreground = ::GetForegroundWindow( );
+
+		const auto fg_thread = ::GetWindowThreadProcessId( this->m_prev_foreground, nullptr );
+		const auto my_thread = ::GetCurrentThreadId( );
+
+		if ( fg_thread && fg_thread != my_thread )
+		{
+			::AttachThreadInput( my_thread, fg_thread, TRUE );
+			::SetForegroundWindow( this->m_hwnd );
+			::AttachThreadInput( my_thread, fg_thread, FALSE );
+		}
+		else
+		{
+			::SetForegroundWindow( this->m_hwnd );
+		}
+	}
+	else if ( !open && this->m_was_open )
+	{
+		if ( this->m_prev_foreground )
+		{
+			const auto my_thread = ::GetCurrentThreadId( );
+			const auto prev_thread = ::GetWindowThreadProcessId( this->m_prev_foreground, nullptr );
+
+			if ( prev_thread && prev_thread != my_thread )
+			{
+				::AttachThreadInput( my_thread, prev_thread, TRUE );
+				::SetForegroundWindow( this->m_prev_foreground );
+				::AttachThreadInput( my_thread, prev_thread, FALSE );
+			}
+			else
+			{
+				::SetForegroundWindow( this->m_prev_foreground );
+			}
+
+			this->m_prev_foreground = nullptr;
+		}
+	}
+
+	this->m_was_open = open;
 }
 
 bool render::setup_d3d( )
@@ -176,7 +219,6 @@ bool render::setup_d3d( )
 		this->m_fonts.mochi_12 = zdraw::add_font_from_memory( std::span( reinterpret_cast< const std::byte* >( resources::fonts::mochi ), sizeof( resources::fonts::mochi ) ), 12.0f, 512, 512 );
 		this->m_fonts.pretzel_12 = zdraw::add_font_from_memory( std::span( reinterpret_cast< const std::byte* >( resources::fonts::pretzel ), sizeof( resources::fonts::pretzel ) ), 12.0f, 512, 512 );
 		this->m_fonts.pixel7_10 = zdraw::add_font_from_memory( std::span( reinterpret_cast< const std::byte* >( resources::fonts::pixel7 ), sizeof( resources::fonts::pixel7 ) ), 10.0f, 512, 512 );
-		this->m_fonts.weapons_15 = zdraw::add_font_from_memory( std::span( reinterpret_cast< const std::byte* >( resources::fonts::weapons ), sizeof( resources::fonts::weapons ) ), 16.0f, 512, 512 );
 	}
 
 	return true;

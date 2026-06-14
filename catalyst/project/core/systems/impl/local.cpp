@@ -28,10 +28,10 @@ namespace systems {
 		this->m_controller.store( local_controller );
 		this->m_pawn.store( player_pawn );
 
-		const auto team_num = g::memory.read<std::int32_t>( player_pawn + SCHEMA( "C_BaseEntity", "m_iTeamNum"_hash ) );
+		const auto team_num = g::memory.read<int>( player_pawn + SCHEMA( "C_BaseEntity", "m_iTeamNum"_hash ) );
 		this->m_team.store( team_num );
 
-		const auto health = g::memory.read<std::int32_t>( player_pawn + SCHEMA( "C_BaseEntity", "m_iHealth"_hash ) );
+		const auto health = g::memory.read<int>( player_pawn + SCHEMA( "C_BaseEntity", "m_iHealth"_hash ) );
 		this->m_alive.store( health > 0 );
 
 		if ( this->m_alive.load( ) )
@@ -118,11 +118,11 @@ namespace systems {
 			}
 
 			this->m_observer_pawn.store( observer_target );
-			this->m_view_team.store( g::memory.read<std::int32_t>( observer_target + SCHEMA( "C_BaseEntity", "m_iTeamNum"_hash ) ) );
+			this->m_view_team.store( g::memory.read<int>( observer_target + SCHEMA( "C_BaseEntity", "m_iTeamNum"_hash ) ) );
 		}
 
-		const auto game_type = systems::g_convars.get<std::int32_t>( CONVAR( "game_type"_hash ) );
-		const auto game_mode = systems::g_convars.get<std::int32_t>( CONVAR( "game_mode"_hash ) );
+		const auto game_type = systems::g_convars.get<int>( CONVAR( "game_type"_hash ) );
+		const auto game_mode = systems::g_convars.get<int>( CONVAR( "game_mode"_hash ) );
 		const auto is_ffa = ( game_type == 1 && game_mode == 2 ) || ( game_type == 2 && game_mode == 0 );
 
 		this->m_team_mode.store( !is_ffa );

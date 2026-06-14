@@ -15,7 +15,7 @@ namespace systems {
 		std::vector<cached> fresh{};
 		fresh.reserve( 128 );
 
-		for ( std::int32_t i = 0; i < 2048; ++i )
+		for ( auto i = 0; i < 2048; ++i )
 		{
 			const auto entity = this->get_by_index( entity_list, i );
 			if ( !entity )
@@ -99,7 +99,7 @@ namespace systems {
 		return g::memory.read<std::uintptr_t>( g::offsets.entity_list );
 	}
 
-	std::uintptr_t entities::get_by_index( std::uintptr_t entity_list, std::int32_t index ) const
+	std::uintptr_t entities::get_by_index( std::uintptr_t entity_list, int index ) const
 	{
 		const auto chunk_index = index >> 9;
 		const auto list_entry = g::memory.read<std::uintptr_t>( entity_list + ( static_cast< std::uintptr_t >( chunk_index ) * 8 ) + 0x10 );

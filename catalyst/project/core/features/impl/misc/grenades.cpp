@@ -31,8 +31,7 @@ namespace features::misc {
 					return false;
 				}
 
-				const auto projectiles = systems::g_collector.projectiles( );
-				for ( const auto& proj : projectiles )
+				for ( const auto& proj : systems::g_collector.projectiles( ) )
 				{
 					if ( proj.entity == g.entity )
 					{
@@ -272,7 +271,7 @@ namespace features::misc {
 
 			alive.insert( proj.entity );
 
-			in_flight_grenade* existing{ nullptr };
+			in_flight_grenade* existing{};
 
 			for ( auto& gren : this->m_in_flight )
 			{
@@ -596,9 +595,9 @@ namespace features::misc {
 
 			const auto t = static_cast< float >( i ) / static_cast< float >( total - 1 );
 			const auto seg_alpha = alpha * ( 1.0f - t * 0.6f );
-			const auto a = static_cast< std::uint8_t >( std::clamp( seg_alpha * static_cast< float >( cfg.color.a ), 0.0f, 255.0f ) );
+			const auto a = static_cast< std::uint8_t >( std::clamp( seg_alpha * static_cast< float >( cfg.color.value.a ), 0.0f, 255.0f ) );
 
-			draw_list.add_line( s0.x, s0.y, s1.x, s1.y, { cfg.color.r, cfg.color.g, cfg.color.b, a }, 2.0f );
+			draw_list.add_line( s0.x, s0.y, s1.x, s1.y, { cfg.color.value.r, cfg.color.value.g, cfg.color.value.b, a }, 2.0f );
 		}
 
 		for ( const auto& bounce : traj.bounces )
@@ -609,10 +608,10 @@ namespace features::misc {
 				continue;
 			}
 
-			const auto a = static_cast< std::uint8_t >( alpha * static_cast< float >( cfg.color.a ) );
+			const auto a = static_cast< std::uint8_t >( alpha * static_cast< float >( cfg.color.value.a ) );
 
 			draw_list.add_rect_filled( s.x - 3.0f, s.y - 3.0f, 6.0f, 6.0f, { 0, 0, 0, a } );
-			draw_list.add_rect_filled( s.x - 2.0f, s.y - 2.0f, 4.0f, 4.0f, { cfg.color.r, cfg.color.g, cfg.color.b, a } );
+			draw_list.add_rect_filled( s.x - 2.0f, s.y - 2.0f, 4.0f, 4.0f, { cfg.color.value.r, cfg.color.value.g, cfg.color.value.b, a } );
 		}
 
 		if ( traj.end_tick >= 0 )
@@ -620,10 +619,10 @@ namespace features::misc {
 			const auto s = systems::g_view.project( traj.end_pos );
 			if ( systems::g_view.projection_valid( s ) )
 			{
-				const auto a = static_cast< std::uint8_t >( alpha * static_cast< float >( cfg.color.a ) );
+				const auto a = static_cast< std::uint8_t >( alpha * static_cast< float >( cfg.color.value.a ) );
 
 				draw_list.add_rect_filled( s.x - 5.0f, s.y - 5.0f, 10.0f, 10.0f, { 0, 0, 0, a } );
-				draw_list.add_rect_filled( s.x - 4.0f, s.y - 4.0f, 8.0f, 8.0f, { cfg.color.r, cfg.color.g, cfg.color.b, a } );
+				draw_list.add_rect_filled( s.x - 4.0f, s.y - 4.0f, 8.0f, 8.0f, { cfg.color.value.r, cfg.color.value.g, cfg.color.value.b, a } );
 			}
 		}
 	}

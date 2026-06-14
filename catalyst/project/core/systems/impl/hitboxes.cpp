@@ -72,7 +72,7 @@ namespace systems {
             return result;
         }
 
-        for ( int i = 0; i < count; ++i )
+        for ( auto i = 0; i < count; ++i )
         {
             const auto offset = i * k_hitbox_stride;
             auto bone{ -1 };

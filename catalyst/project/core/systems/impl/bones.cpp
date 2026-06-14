@@ -46,7 +46,8 @@ namespace systems {
 		}
 
 		data result{};
-		for ( std::size_t i = 0; i < result.bones.size( ); ++i )
+
+		for ( auto i = 0ull; i < result.bones.size( ); ++i )
 		{
 			result.bones[ i ].position = raw[ i ].position;
 			result.bones[ i ].rotation = raw[ i ].rotation;

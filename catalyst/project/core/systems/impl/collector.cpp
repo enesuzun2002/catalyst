@@ -53,7 +53,7 @@ namespace systems {
 				continue;
 			}
 
-			const auto health = g::memory.read<std::int32_t>( player_pawn + SCHEMA( "C_BaseEntity", "m_iHealth"_hash ) );
+			const auto health = g::memory.read<int>( player_pawn + SCHEMA( "C_BaseEntity", "m_iHealth"_hash ) );
 			if ( health <= 0 )
 			{
 				continue;
@@ -63,13 +63,13 @@ namespace systems {
 			p.controller = entry.ptr;
 			p.pawn = player_pawn;
 			p.health = health;
-			p.team = g::memory.read<std::int32_t>( player_pawn + SCHEMA( "C_BaseEntity", "m_iTeamNum"_hash ) );
+			p.team = g::memory.read<int>( player_pawn + SCHEMA( "C_BaseEntity", "m_iTeamNum"_hash ) );
 			p.invulnerable = g::memory.read<bool>( player_pawn + SCHEMA( "C_CSPlayerPawn", "m_bGunGameImmunity"_hash ) );
-			p.armor = g::memory.read<std::int32_t>( player_pawn + SCHEMA( "C_CSPlayerPawn", "m_ArmorValue"_hash ) );
+			p.armor = g::memory.read<int>( player_pawn + SCHEMA( "C_CSPlayerPawn", "m_ArmorValue"_hash ) );
 			p.is_scoped = g::memory.read<bool>( player_pawn + SCHEMA( "C_CSPlayerPawn", "m_bIsScoped"_hash ) );
 			p.is_defusing = g::memory.read<bool>( player_pawn + SCHEMA( "C_CSPlayerPawn", "m_bIsDefusing"_hash ) );
 			p.is_flashed = g::memory.read<float>( player_pawn + SCHEMA( "C_CSPlayerPawnBase", "m_flFlashBangTime"_hash ) ) > 0.0f;
-			p.ping = g::memory.read<std::int32_t>( entry.ptr + SCHEMA( "CCSPlayerController", "m_iPing"_hash ) );
+			p.ping = g::memory.read<int>( entry.ptr + SCHEMA( "CCSPlayerController", "m_iPing"_hash ) );
 
 			const auto game_scene_node = g::memory.read<std::uintptr_t>( player_pawn + SCHEMA( "C_BaseEntity", "m_pGameSceneNode"_hash ) );
 			if ( game_scene_node )
@@ -104,8 +104,8 @@ namespace systems {
 						p.weapon.vdata = g::memory.read<std::uintptr_t>( p.weapon.ptr + SCHEMA( "C_BaseEntity", "m_nSubclassID"_hash ) + 0x8 );
 						if ( p.weapon.vdata )
 						{
-							p.weapon.ammo = g::memory.read<std::int32_t>( p.weapon.ptr + SCHEMA( "C_BasePlayerWeapon", "m_iClip1"_hash ) );
-							p.weapon.max_ammo = g::memory.read<std::int32_t>( p.weapon.vdata + SCHEMA( "CBasePlayerWeaponVData", "m_iMaxClip1"_hash ) );
+							p.weapon.ammo = g::memory.read<int>( p.weapon.ptr + SCHEMA( "C_BasePlayerWeapon", "m_iClip1"_hash ) );
+							p.weapon.max_ammo = g::memory.read<int>( p.weapon.vdata + SCHEMA( "CBasePlayerWeaponVData", "m_iMaxClip1"_hash ) );
 
 							const auto weapon_name_ptr = g::memory.read<std::uintptr_t>( p.weapon.vdata + SCHEMA( "CCSWeaponBaseVData", "m_szName"_hash ) );
 							if ( weapon_name_ptr )
@@ -131,7 +131,7 @@ namespace systems {
 			const auto money_services = g::memory.read<std::uintptr_t>( entry.ptr + SCHEMA( "CCSPlayerController", "m_pInGameMoneyServices"_hash ) );
 			if ( money_services )
 			{
-				p.money = g::memory.read<std::int32_t>( money_services + SCHEMA( "CCSPlayerController_InGameMoneyServices", "m_iAccount"_hash ) );
+				p.money = g::memory.read<int>( money_services + SCHEMA( "CCSPlayerController_InGameMoneyServices", "m_iAccount"_hash ) );
 			}
 
 			fresh.push_back( std::move( p ) );
@@ -181,12 +181,12 @@ namespace systems {
 			i.game_scene_node = game_scene_node;
 			i.subtype = subtype;
 			i.origin = g::memory.read<math::vector3>( game_scene_node + SCHEMA( "CGameSceneNode", "m_vecAbsOrigin"_hash ) );
-			i.ammo = g::memory.read<std::int32_t>( entry.ptr + SCHEMA( "C_BasePlayerWeapon", "m_iClip1"_hash ) );
+			i.ammo = g::memory.read<int>( entry.ptr + SCHEMA( "C_BasePlayerWeapon", "m_iClip1"_hash ) );
 
 			const auto weapon_vdata = g::memory.read<std::uintptr_t>( entry.ptr + SCHEMA( "C_BaseEntity", "m_nSubclassID"_hash ) + 0x8 );
 			if ( weapon_vdata )
 			{
-				i.max_ammo = g::memory.read<std::int32_t>( weapon_vdata + SCHEMA( "CBasePlayerWeaponVData", "m_iMaxClip1"_hash ) );
+				i.max_ammo = g::memory.read<int>( weapon_vdata + SCHEMA( "CBasePlayerWeaponVData", "m_iMaxClip1"_hash ) );
 			}
 
 			fresh.push_back( std::move( i ) );
@@ -235,7 +235,7 @@ namespace systems {
 				std::vector<math::vector3> fire_points{};
 				fire_points.reserve( std::min( fire_count, 64 ) );
 
-				for ( int i = 0; i < std::min( fire_count, 64 ); ++i )
+				for ( auto i = 0; i < std::min( fire_count, 64 ); ++i )
 				{
 					if ( !g::memory.read<bool>( fire_active_base + i ) )
 					{
@@ -250,7 +250,7 @@ namespace systems {
 					continue;
 				}
 
-				auto center = math::vector3{};
+				math::vector3 center{};
 
 				for ( const auto& pt : fire_points )
 				{
@@ -259,7 +259,7 @@ namespace systems {
 
 				center = center * ( 1.0f / static_cast< float >( fire_points.size( ) ) );
 
-				const auto effect_tick = g::memory.read<std::int32_t>( entry.ptr + SCHEMA( "C_Inferno", "m_nFireEffectTickBegin"_hash ) );
+				const auto effect_tick = g::memory.read<int>( entry.ptr + SCHEMA( "C_Inferno", "m_nFireEffectTickBegin"_hash ) );
 				const auto start_time = static_cast< float >( effect_tick ) * ( 1.0f / 64.0f );
 				constexpr auto inferno_duration = 7.0f;
 
@@ -287,21 +287,21 @@ namespace systems {
 			p.origin = g::memory.read<math::vector3>( game_scene_node + SCHEMA( "CGameSceneNode", "m_vecAbsOrigin"_hash ) );
 			p.velocity = g::memory.read<math::vector3>( entry.ptr + SCHEMA( "C_BaseEntity", "m_vecAbsVelocity"_hash ) );
 			p.thrower_handle = g::memory.read<std::uint32_t>( entry.ptr + SCHEMA( "C_BaseGrenade", "m_hThrower"_hash ) );
-			p.bounces = g::memory.read<std::int32_t>( entry.ptr + SCHEMA( "C_BaseCSGrenadeProjectile", "m_nBounces"_hash ) );
+			p.bounces = g::memory.read<int>( entry.ptr + SCHEMA( "C_BaseCSGrenadeProjectile", "m_nBounces"_hash ) );
 
 			if ( subtype == projectile_subtype::he_grenade || subtype == projectile_subtype::flashbang )
 			{
-				const auto detonate_tick = g::memory.read<std::int32_t>( entry.ptr + SCHEMA( "C_BaseCSGrenadeProjectile", "m_nExplodeEffectTickBegin"_hash ) );
+				const auto detonate_tick = g::memory.read<int>( entry.ptr + SCHEMA( "C_BaseCSGrenadeProjectile", "m_nExplodeEffectTickBegin"_hash ) );
 				p.detonated = detonate_tick > 0;
 			}
 			else if ( subtype == projectile_subtype::smoke_grenade )
 			{
-				p.effect_tick_begin = g::memory.read<std::int32_t>( entry.ptr + SCHEMA( "C_SmokeGrenadeProjectile", "m_nSmokeEffectTickBegin"_hash ) );
+				p.effect_tick_begin = g::memory.read<int>( entry.ptr + SCHEMA( "C_SmokeGrenadeProjectile", "m_nSmokeEffectTickBegin"_hash ) );
 				p.smoke_active = g::memory.read<bool>( entry.ptr + SCHEMA( "C_SmokeGrenadeProjectile", "m_bDidSmokeEffect"_hash ) );
 			}
 			else if ( subtype == projectile_subtype::decoy )
 			{
-				p.effect_tick_begin = g::memory.read<std::int32_t>( entry.ptr + SCHEMA( "C_DecoyProjectile", "m_nDecoyShotTick"_hash ) );
+				p.effect_tick_begin = g::memory.read<int>( entry.ptr + SCHEMA( "C_DecoyProjectile", "m_nDecoyShotTick"_hash ) );
 			}
 
 			fresh.push_back( std::move( p ) );
@@ -320,51 +320,51 @@ namespace systems {
 	{
 		switch ( schema_hash )
 		{
-		case "C_AK47"_hash:                return item_subtype::ak47;
-		case "C_WeaponM4A1"_hash:          return item_subtype::m4a4;
-		case "C_WeaponM4A1Silencer"_hash:  return item_subtype::m4a1s;
-		case "C_WeaponAWP"_hash:           return item_subtype::awp;
-		case "C_WeaponAug"_hash:           return item_subtype::aug;
-		case "C_WeaponFamas"_hash:         return item_subtype::famas;
-		case "C_WeaponGalilAR"_hash:       return item_subtype::galil_ar;
-		case "C_WeaponSG556"_hash:         return item_subtype::sg553;
-		case "C_WeaponG3SG1"_hash:         return item_subtype::g3sg1;
-		case "C_WeaponSCAR20"_hash:        return item_subtype::scar20;
-		case "C_WeaponSSG08"_hash:         return item_subtype::ssg08;
-		case "C_WeaponMAC10"_hash:         return item_subtype::mac10;
-		case "C_WeaponMP5SD"_hash:         return item_subtype::mp5sd;
-		case "C_WeaponMP7"_hash:           return item_subtype::mp7;
-		case "C_WeaponMP9"_hash:           return item_subtype::mp9;
-		case "C_WeaponBizon"_hash:         return item_subtype::pp_bizon;
-		case "C_WeaponP90"_hash:           return item_subtype::p90;
-		case "C_WeaponUMP45"_hash:         return item_subtype::ump45;
-		case "C_WeaponNOVA"_hash:          return item_subtype::nova;
-		case "C_WeaponSawedoff"_hash:      return item_subtype::sawed_off;
-		case "C_WeaponXM1014"_hash:        return item_subtype::xm1014;
-		case "C_WeaponMag7"_hash:          return item_subtype::mag7;
-		case "C_WeaponM249"_hash:          return item_subtype::m249;
-		case "C_WeaponNegev"_hash:         return item_subtype::negev;
-		case "C_DEagle"_hash:              return item_subtype::deagle;
-		case "C_WeaponElite"_hash:         return item_subtype::dual_berettas;
-		case "C_WeaponFiveSeven"_hash:     return item_subtype::five_seven;
-		case "C_WeaponGlock"_hash:         return item_subtype::glock;
-		case "C_WeaponHKP2000"_hash:       return item_subtype::p2000;
-		case "C_WeaponUSPSilencer"_hash:   return item_subtype::usps;
-		case "C_WeaponP250"_hash:          return item_subtype::p250;
-		case "C_WeaponCZ75a"_hash:         return item_subtype::cz75;
-		case "C_WeaponTec9"_hash:          return item_subtype::tec9;
-		case "C_WeaponRevolver"_hash:      return item_subtype::r8_revolver;
-		case "C_WeaponTaser"_hash:         return item_subtype::taser;
-		case "C_Knife"_hash:               return item_subtype::knife;
-		case "C_C4"_hash:                  return item_subtype::c4;
-		case "C_Item_Healthshot"_hash:     return item_subtype::healthshot;
-		case "C_HEGrenade"_hash:           return item_subtype::he_grenade;
-		case "C_Flashbang"_hash:           return item_subtype::flashbang;
-		case "C_SmokeGrenade"_hash:        return item_subtype::smoke_grenade;
-		case "C_MolotovGrenade"_hash:      return item_subtype::molotov;
-		case "C_IncendiaryGrenade"_hash:   return item_subtype::incendiary;
-		case "C_DecoyGrenade"_hash:        return item_subtype::decoy;
-		default:                           return item_subtype::unknown;
+		case "C_AK47"_hash:               return item_subtype::ak47;
+		case "C_WeaponM4A1"_hash:         return item_subtype::m4a4;
+		case "C_WeaponM4A1Silencer"_hash: return item_subtype::m4a1s;
+		case "C_WeaponAWP"_hash:          return item_subtype::awp;
+		case "C_WeaponAug"_hash:          return item_subtype::aug;
+		case "C_WeaponFamas"_hash:        return item_subtype::famas;
+		case "C_WeaponGalilAR"_hash:      return item_subtype::galil_ar;
+		case "C_WeaponSG556"_hash:        return item_subtype::sg553;
+		case "C_WeaponG3SG1"_hash:        return item_subtype::g3sg1;
+		case "C_WeaponSCAR20"_hash:       return item_subtype::scar20;
+		case "C_WeaponSSG08"_hash:        return item_subtype::ssg08;
+		case "C_WeaponMAC10"_hash:        return item_subtype::mac10;
+		case "C_WeaponMP5SD"_hash:        return item_subtype::mp5sd;
+		case "C_WeaponMP7"_hash:          return item_subtype::mp7;
+		case "C_WeaponMP9"_hash:          return item_subtype::mp9;
+		case "C_WeaponBizon"_hash:        return item_subtype::pp_bizon;
+		case "C_WeaponP90"_hash:          return item_subtype::p90;
+		case "C_WeaponUMP45"_hash:        return item_subtype::ump45;
+		case "C_WeaponNOVA"_hash:         return item_subtype::nova;
+		case "C_WeaponSawedoff"_hash:     return item_subtype::sawed_off;
+		case "C_WeaponXM1014"_hash:       return item_subtype::xm1014;
+		case "C_WeaponMag7"_hash:         return item_subtype::mag7;
+		case "C_WeaponM249"_hash:         return item_subtype::m249;
+		case "C_WeaponNegev"_hash:        return item_subtype::negev;
+		case "C_DEagle"_hash:             return item_subtype::deagle;
+		case "C_WeaponElite"_hash:        return item_subtype::dual_berettas;
+		case "C_WeaponFiveSeven"_hash:    return item_subtype::five_seven;
+		case "C_WeaponGlock"_hash:        return item_subtype::glock;
+		case "C_WeaponHKP2000"_hash:      return item_subtype::p2000;
+		case "C_WeaponUSPSilencer"_hash:  return item_subtype::usps;
+		case "C_WeaponP250"_hash:         return item_subtype::p250;
+		case "C_WeaponCZ75a"_hash:        return item_subtype::cz75;
+		case "C_WeaponTec9"_hash:         return item_subtype::tec9;
+		case "C_WeaponRevolver"_hash:     return item_subtype::r8_revolver;
+		case "C_WeaponTaser"_hash:        return item_subtype::taser;
+		case "C_Knife"_hash:              return item_subtype::knife;
+		case "C_C4"_hash:                 return item_subtype::c4;
+		case "C_Item_Healthshot"_hash:    return item_subtype::healthshot;
+		case "C_HEGrenade"_hash:          return item_subtype::he_grenade;
+		case "C_Flashbang"_hash:          return item_subtype::flashbang;
+		case "C_SmokeGrenade"_hash:       return item_subtype::smoke_grenade;
+		case "C_MolotovGrenade"_hash:     return item_subtype::molotov;
+		case "C_IncendiaryGrenade"_hash:  return item_subtype::incendiary;
+		case "C_DecoyGrenade"_hash:       return item_subtype::decoy;
+		default:                          return item_subtype::unknown;
 		}
 	}
 
