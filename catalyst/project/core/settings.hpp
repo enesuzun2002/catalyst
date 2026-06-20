@@ -233,9 +233,10 @@ namespace settings {
 			struct name
 			{
 				config::f<bool, "enabled"> enabled{ true };
-				config::f<zdraw::rgba, "color"> color{ { 195, 200, 215, 230 } };
+				config::f<zdraw::rgba, "visible color"> visible_color{ { 195, 200, 215, 230 } };
+				config::f<zdraw::rgba, "occluded color"> occluded_color{ { 150, 155, 170, 180 } };
 
-				CONFIG_MEMBERS( enabled, color )
+				CONFIG_MEMBERS( enabled, visible_color, occluded_color )
 			};
 
 			config::g<name, "name"> m_name{};
@@ -247,10 +248,12 @@ namespace settings {
 				config::f<bool, "enabled"> enabled{ true };
 				config::f<display_type, "display"> display{ display_type::icon };
 
-				config::f<zdraw::rgba, "text color"> text_color{ { 195, 200, 215, 210 } };
-				config::f<zdraw::rgba, "icon color"> icon_color{ { 195, 200, 215, 230 } };
+				config::f<zdraw::rgba, "visible text color"> visible_text_color{ { 195, 200, 215, 210 } };
+				config::f<zdraw::rgba, "occluded text color"> occluded_text_color{ { 150, 155, 170, 180 } };
+				config::f<zdraw::rgba, "visible icon color"> visible_icon_color{ { 195, 200, 215, 230 } };
+				config::f<zdraw::rgba, "occluded icon color"> occluded_icon_color{ { 150, 155, 170, 180 } };
 
-				CONFIG_MEMBERS( enabled, display, text_color, icon_color )
+				CONFIG_MEMBERS( enabled, display, visible_text_color, occluded_text_color, visible_icon_color, occluded_icon_color )
 			};
 
 			config::g<weapon, "weapon"> m_weapon{};

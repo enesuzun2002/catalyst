@@ -604,7 +604,8 @@ namespace features::esp {
 		const auto text_x = std::floorf( bounds.min.x + ( bounds.width( ) * 0.5f ) - ( text_w * 0.5f ) );
 		const auto text_y = std::floorf( bounds.min.y - text_h - 2.0f - offsets.top );
 
-		draw_list.add_text( text_x, text_y, player.display_name, nullptr, cfg.color, zdraw::text_style::outlined );
+		const auto& color = player.is_visible ? cfg.visible_color.value : cfg.occluded_color.value;
+		draw_list.add_text( text_x, text_y, player.display_name, nullptr, color, zdraw::text_style::outlined );
 		zdraw::pop_font( );
 
 		offsets.top += text_h + 2.0f;
@@ -615,6 +616,9 @@ namespace features::esp {
 		zdraw::push_font( g::render.fonts( ).mochi_12 );
 
 		auto total_height{ 0.0f };
+
+		const auto& text_color = player.is_visible ? cfg.visible_text_color.value : cfg.occluded_text_color.value;
+		const auto& icon_color = player.is_visible ? cfg.visible_icon_color.value : cfg.occluded_icon_color.value;
 
 		if ( cfg.display == settings::esp::player::weapon::display_type::icon || cfg.display == settings::esp::player::weapon::display_type::text_and_icon )
 		{
@@ -631,7 +635,7 @@ namespace features::esp {
 				draw_list.add_rect_textured( icon_x + 1.0f, icon_y, target_w, target_h, ico->texture.Get( ), 0.0f, 0.0f, 1.0f, 1.0f, outline );
 				draw_list.add_rect_textured( icon_x, icon_y - 1.0f, target_w, target_h, ico->texture.Get( ), 0.0f, 0.0f, 1.0f, 1.0f, outline );
 				draw_list.add_rect_textured( icon_x, icon_y + 1.0f, target_w, target_h, ico->texture.Get( ), 0.0f, 0.0f, 1.0f, 1.0f, outline );
-				draw_list.add_rect_textured( icon_x, icon_y, target_w, target_h, ico->texture.Get( ), 0.0f, 0.0f, 1.0f, 1.0f, cfg.icon_color );
+				draw_list.add_rect_textured( icon_x, icon_y, target_w, target_h, ico->texture.Get( ), 0.0f, 0.0f, 1.0f, 1.0f, icon_color );
 
 				total_height += target_h + 2.0f;
 			}
@@ -643,7 +647,7 @@ namespace features::esp {
 			const auto text_x = std::floorf( bounds.min.x + ( bounds.width( ) * 0.5f ) - ( text_w * 0.5f ) );
 			const auto text_y = std::floorf( bounds.max.y + 2.0f + offsets.bottom + total_height );
 
-			draw_list.add_text( text_x, text_y, player.weapon.name, nullptr, cfg.text_color, zdraw::text_style::outlined );
+			draw_list.add_text( text_x, text_y, player.weapon.name, nullptr, text_color, zdraw::text_style::outlined );
 
 			total_height += text_h + 2.0f;
 		}

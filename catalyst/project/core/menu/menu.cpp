@@ -369,7 +369,8 @@ void menu::draw_esp( )
 		zui::checkbox( "name##nm", p.m_name.enabled );
 		if ( zui::begin_popup( "##nm_popup", 200.0f ) )
 		{
-			zui::color_picker( "color##nm", p.m_name.color );
+			zui::color_picker( "visible##nm", p.m_name.visible_color );
+			zui::color_picker( "occluded##nm", p.m_name.occluded_color );
 			zui::end_popup( );
 		}
 
@@ -379,8 +380,10 @@ void menu::draw_esp( )
 			constexpr const char* disp_types[ ]{ "text", "icon", "text + icon" };
 			zui::combo( "display##wp", p.m_weapon.display.value, disp_types, 3 );
 
-			zui::color_picker( "text color##wp", p.m_weapon.text_color );
-			zui::color_picker( "icon color##wp", p.m_weapon.icon_color );
+			zui::color_picker( "visible text##wp", p.m_weapon.visible_text_color );
+			zui::color_picker( "occluded text##wp", p.m_weapon.occluded_text_color );
+			zui::color_picker( "visible icon##wp", p.m_weapon.visible_icon_color );
+			zui::color_picker( "occluded icon##wp", p.m_weapon.occluded_icon_color );
 			zui::end_popup( );
 		}
 
